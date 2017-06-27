@@ -77,7 +77,7 @@ public final class SwtBotWorkbenchActions {
         bot.sleep(300);
       }
     };
-    ProjectUtils.waitForProjects(delayTactic, projects);
+    ProjectUtils.waitForProjects(delayTactic, null, projects);
   }
 
   /**
