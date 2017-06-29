@@ -233,10 +233,10 @@ public class ProjectUtils {
   /**
    * Wait for any spawned jobs and builds to complete (e.g., validation jobs).
    * 
-   * @param expectedResult a predicate returning true if the proivded error marker strings are
-   *        expected
+   * @param expectedResultsPredicate a predicate returning true if the provided error marker strings
+   *        are expected
    */
-  public static void waitForProjects(Predicate<Collection<String>> expectedResult,
+  public static void waitForProjects(Predicate<Collection<String>> expectedResultsPredicate,
       IProject... projects) {
     Runnable delayTactic = new Runnable() {
       @Override
@@ -250,18 +250,18 @@ public class ProjectUtils {
         Thread.yield();
       }
     };
-    waitForProjects(delayTactic, expectedResult, projects);
+    waitForProjects(delayTactic, expectedResultsPredicate, projects);
   }
 
   /** Wait for any spawned jobs and builds to complete (e.g., validation jobs). */
   public static void waitForProjects(Runnable delayTactic,
-      Predicate<Collection<String>> expectedResultPredicate, IProject... projects) {
+      Predicate<Collection<String>> expectedResultsPredicate, IProject... projects) {
     if (projects.length == 0) {
       projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
     }
     // if unspecified, the expected result is no build errors
-    if (expectedResultPredicate == null) {
-      expectedResultPredicate = PredicateUtil.isOfSize(0);
+    if (expectedResultsPredicate == null) {
+      expectedResultsPredicate = PredicateUtil.isOfSize(0);
     }
     Stopwatch timer = Stopwatch.createStarted();
     try {
@@ -304,9 +304,11 @@ public class ProjectUtils {
           // }
         }
       } while (!jobs.isEmpty() || buildErrorsChanging);
-      boolean wasExpected = expectedResultPredicate.apply(previousBuildErrors);
+      boolean wasExpected = expectedResultsPredicate.apply(previousBuildErrors);
       if (!wasExpected) {
+        System.err.printf("Build errors:\n" + Joiner.on("\n  ").join(previousBuildErrors));
         ThreadDumpingWatchdog.report();
+        // should we fail?
       }
     } catch (CoreException | InterruptedException ex) {
       throw new RuntimeException(ex);
