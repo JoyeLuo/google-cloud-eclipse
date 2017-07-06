@@ -22,13 +22,9 @@ public class TransportTest {
 
   @Test
   public void testNewStorageClient_classpath() {
-    try {
-      Transport.newStorageClient();
-    } catch (CouldNotCreateCredentialsException ex) {
-      // Credentials may or may not be found. What we're
-      // really testing here is the classpath. The bug being 
-      // tested for manifests as a NoClassDefFoundError.
-    }
+    Transport.newStorageClient();
+    // What we're really testing here is the classpath. The bug being
+    // tested for manifests as a NoClassDefFoundError.
   }
 
 }

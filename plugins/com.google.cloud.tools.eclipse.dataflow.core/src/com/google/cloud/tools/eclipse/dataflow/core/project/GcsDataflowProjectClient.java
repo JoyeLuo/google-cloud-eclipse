@@ -16,21 +16,20 @@
 
 package com.google.cloud.tools.eclipse.dataflow.core.project;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Buckets;
-import com.google.cloud.tools.eclipse.dataflow.core.util.CouldNotCreateCredentialsException;
-import com.google.cloud.tools.eclipse.dataflow.core.util.Transport;
+import com.google.cloud.tools.eclipse.util.CloudToolsInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.SubMonitor;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.SubMonitor;
 
 /**
  * A client that interacts directly with Google Cloud Storage to provide Dataflow-plugin specific
@@ -41,9 +40,12 @@ public class GcsDataflowProjectClient {
 
   private final Storage gcsClient;
 
-  public static GcsDataflowProjectClient createWithDefaultClient()
-      throws CouldNotCreateCredentialsException {
-    return new GcsDataflowProjectClient(Transport.newStorageClient().build());
+  public static GcsDataflowProjectClient createWithDefaultClient(Credential credential) {
+    Storage storage = new Storage
+        .Builder(Utils.getDefaultTransport(), Utils.getDefaultJsonFactory(), credential)
+        .setApplicationName(CloudToolsInfo.USER_AGENT)
+        .build();
+    return new GcsDataflowProjectClient(storage);
   }
 
   @VisibleForTesting
@@ -77,7 +79,7 @@ public class GcsDataflowProjectClient {
           String.format("Bucket %s exists", bucketName), true);
     }
     monitor.worked(1);
-    
+
     // else create the bucket
     try {
       Bucket newBucket = new Bucket();

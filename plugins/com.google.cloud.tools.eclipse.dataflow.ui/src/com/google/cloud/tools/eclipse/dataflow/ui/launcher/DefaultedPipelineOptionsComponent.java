@@ -21,6 +21,8 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.dataflow.ui.preferences.RunOptionsDefaultsComponent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import java.util.HashMap;
+import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -31,8 +33,6 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A Component that contains a group of pipeline options that can be defaulted with {@link

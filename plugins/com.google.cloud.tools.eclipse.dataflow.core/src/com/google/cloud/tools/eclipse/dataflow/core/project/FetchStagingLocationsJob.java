@@ -18,14 +18,12 @@ package com.google.cloud.tools.eclipse.dataflow.core.project;
 
 import com.google.cloud.tools.eclipse.dataflow.core.proxy.ListenableFutureProxy;
 import com.google.common.util.concurrent.SettableFuture;
-
+import java.io.IOException;
+import java.util.SortedSet;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
-
-import java.io.IOException;
-import java.util.SortedSet;
 
 /**
  * A job that retrieves a collection of potential Staging Locations from a {@link
