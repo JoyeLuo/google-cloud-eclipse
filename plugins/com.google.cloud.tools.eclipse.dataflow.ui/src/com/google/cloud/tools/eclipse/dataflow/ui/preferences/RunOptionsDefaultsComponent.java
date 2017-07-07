@@ -218,25 +218,31 @@ public class RunOptionsDefaultsComponent {
    * Ensure the staging location specified in the input combo is valid.
    */
   private void verifyStagingLocation(final String stagingLocation) {
+    setPageComplete(false);
+    messageTarget.clear();
+
     if (verifyJob != null) {
       // Cancel any existing verifyJob
+      // FIXME: this has no effect, as "VerifyStagingLocationJob" doesn't honor cancellation.
       verifyJob.cancel();
-    }
-    if (client == null) {
-      // We can't verify the staging locations because we don't have a GCS client
-      return;
     }
     if (stagingLocation.isEmpty()) {
       // If the staging location is empty, we don't have anything to verify; and we don't have any
       // interesting messaging.
-      messageTarget.clear();
       setPageComplete(true);
-      return;
-    } else if (!bucketNameOk()) {
-      setPageComplete(false);
       return;
     }
 
+    IStatus status = bucketNameOk();
+    if (!status.isOK()) {
+      messageTarget.setError(status.getMessage());
+      return;
+    }
+
+    if (client == null) {
+      // We can't verify the staging location because we don't have a GCS client
+      return;
+    }
     verifyJob = VerifyStagingLocationJob.create(client, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
@@ -348,27 +354,20 @@ public class RunOptionsDefaultsComponent {
 
   private static final BucketNameValidator bucketNameValidator = new BucketNameValidator();
 
-  private boolean bucketNameOk() {
+  private IStatus bucketNameOk() {
     String bucketName = stagingLocationInput.getText().trim();
     if (bucketName.toLowerCase(Locale.US).startsWith("gs://")) {
       bucketName = bucketName.substring(5);
     }
-    IStatus status = bucketNameValidator.validate(bucketName);
-    if (!status.isOK()) {
-      messageTarget.setError(status.getMessage());
-      setPageComplete(false);
-    } else {
-      messageTarget.clear();
-    }
-    boolean enabled = status.isOK() && !bucketName.isEmpty();
-    return enabled;
+    return bucketNameValidator.validate(bucketName);
   }
 
   private class EnableCreateButton implements ModifyListener {
 
     @Override
     public void modifyText(ModifyEvent event) {
-      boolean enabled = bucketNameOk();
+      boolean notEmpty = !stagingLocationInput.getText().trim().isEmpty();
+      boolean enabled = !notEmpty && bucketNameOk().isOK();
       createButton.setEnabled(enabled);
     }
 
