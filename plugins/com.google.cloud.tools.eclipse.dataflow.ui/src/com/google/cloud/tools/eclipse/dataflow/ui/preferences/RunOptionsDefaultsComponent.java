@@ -31,9 +31,12 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.ButtonFactory;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener;
-import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener.OnCompleteListener;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
 import com.google.common.base.Strings;
+import java.util.Locale;
+import java.util.SortedSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.wizard.WizardPage;
@@ -53,10 +56,6 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.statushandlers.StatusManager;
-import java.util.Locale;
-import java.util.SortedSet;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * Collects default run options for Dataflow Pipelines and provides means to create and modify them.
@@ -134,16 +133,16 @@ public class RunOptionsDefaultsComponent {
 
     completionListener = new SelectFirstMatchingPrefixListener(stagingLocationInput);
     stagingLocationInput.addModifyListener(completionListener);
-    completionListener.addOnCompleteListener(new OnCompleteListener() {
+    stagingLocationInput.addModifyListener(new ModifyListener() {
       @Override
-      public void onComplete(String contents) {
-        verifyStagingLocation(contents);
+      public void modifyText(ModifyEvent event) {
+        verifyStagingLocation(stagingLocationInput.getText());
       }
     });
     createButton.addSelectionListener(new CreateStagingLocationListener());
 
     stagingLocationInput.addModifyListener(new EnableCreateButton());
-    
+
     updateStagingLocations(project);
     messageTarget.setInfo("Set Pipeline Run Option Defaults");
   }
@@ -237,7 +236,7 @@ public class RunOptionsDefaultsComponent {
       setPageComplete(false);
       return;
     }
-    
+
     verifyJob = VerifyStagingLocationJob.create(client, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
@@ -278,7 +277,7 @@ public class RunOptionsDefaultsComponent {
       updateStagingLocations(getProject());
     }
   }
-  
+
   /**
    * Create a GCS bucket in the project specified in the project input at the location specified in
    * the staging location input.
@@ -302,7 +301,7 @@ public class RunOptionsDefaultsComponent {
       }
     }
   }
-  
+
   private void setPageComplete(boolean complete) {
     if (page != null) {
       page.setPageComplete(complete);
@@ -346,9 +345,9 @@ public class RunOptionsDefaultsComponent {
       }
     }
   }
-  
+
   private static final BucketNameValidator bucketNameValidator = new BucketNameValidator();
-  
+
   private boolean bucketNameOk() {
     String bucketName = stagingLocationInput.getText().trim();
     if (bucketName.toLowerCase(Locale.US).startsWith("gs://")) {
@@ -358,11 +357,13 @@ public class RunOptionsDefaultsComponent {
     if (!status.isOK()) {
       messageTarget.setError(status.getMessage());
       setPageComplete(false);
+    } else {
+      messageTarget.clear();
     }
     boolean enabled = status.isOK() && !bucketName.isEmpty();
     return enabled;
   }
-  
+
   private class EnableCreateButton implements ModifyListener {
 
     @Override
