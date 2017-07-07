@@ -33,6 +33,7 @@ import com.google.cloud.tools.eclipse.dataflow.ui.util.ButtonFactory;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener.OnCompleteListener;
+import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
 import com.google.common.base.Strings;
@@ -58,6 +59,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.PlatformUI;
 
 /**
  * Collects default run options for Dataflow Pipelines and provides means to create and modify them.
@@ -66,6 +68,7 @@ public class RunOptionsDefaultsComponent {
 
   private static final int PROJECT_INPUT_SPENT_COLUMNS = 1;
   private static final int STAGING_LOCATION_SPENT_COLUMNS = 2;
+  private static final int ACCOUNT_SPENT_COLUMNS = 1;
 
   private static final long VERIFY_LOCATION_DELAY_MS = 250L;
 
@@ -93,6 +96,12 @@ public class RunOptionsDefaultsComponent {
     this.messageTarget = messageTarget;
     this.executor = DisplayExecutor.create(target.getDisplay());
 
+    Label accountLabel = new Label(target, SWT.NULL);
+    accountLabel.setText("&Account:");
+    IGoogleLoginService loginService =
+        PlatformUI.getWorkbench().getService(IGoogleLoginService.class);
+    accountSelector = new AccountSelector(target, loginService, "Add a new account...");
+
     Label projectInputLabel = new Label(target, SWT.NULL);
     projectInput = new Text(target, SWT.SINGLE | SWT.BORDER);
 
@@ -100,8 +109,6 @@ public class RunOptionsDefaultsComponent {
     stagingLocationInput = new Combo(target, SWT.DROP_DOWN);
     createButton = ButtonFactory.newPushButton(target, "&Create");
     createButton.setEnabled(false);
-
-    accountSelector = new AccountSelector(target, null, null);
 
     // Initialize the Default Project, which is used to populate the Staging Location field
     String project = preferences.getDefaultProject();
@@ -119,6 +126,11 @@ public class RunOptionsDefaultsComponent {
       stagingLocation = "";
     }
     stagingLocationInput.setText(stagingLocation);
+
+    // Account selection occupies a single row
+    accountLabel.setLayoutData(new GridData(SWT.END, SWT.CENTER, false, false, 1, 1));
+    accountSelector.setLayoutData(new GridData(
+        SWT.FILL, SWT.CENTER, true, false, columns - ACCOUNT_SPENT_COLUMNS, 1));
 
     // Project input occupies a single row
     projectInputLabel.setLayoutData(new GridData(SWT.END, SWT.CENTER, false, false, 1, 1));
@@ -158,7 +170,7 @@ public class RunOptionsDefaultsComponent {
   private GcsDataflowProjectClient getGcsClient() {
     Preconditions.checkNotNull(accountSelector.getSelectedCredential());
     Credential credential = accountSelector.getSelectedCredential();
-    return GcsDataflowProjectClient.createWithDefaultClient(credential);
+    return GcsDataflowProjectClient.create(credential);
   }
 
   public Control getControl() {
@@ -197,10 +209,10 @@ public class RunOptionsDefaultsComponent {
    */
   private void updateStagingLocations(String project) {
     // We can't retrieve staging locations if no project was input or we're not authenticated.
-    if (!Strings.isNullOrEmpty(project) && accountSelector.getSelectedCredential() != null) {
-      GcsDataflowProjectClient client = getGcsClient();
+    Credential credential = accountSelector.getSelectedCredential();
+    if (!Strings.isNullOrEmpty(project) && credential != null) {
       ListenableFutureProxy<SortedSet<String>> stagingLocationsFuture =
-          FetchStagingLocationsJob.schedule(client, project);
+          FetchStagingLocationsJob.schedule(credential, project);
       UpdateStagingLocationComboListener updateComboListener =
           new UpdateStagingLocationComboListener(stagingLocationsFuture);
       stagingLocationsFuture.addListener(updateComboListener, executor);
@@ -216,9 +228,9 @@ public class RunOptionsDefaultsComponent {
       verifyJob.cancel();
     }
 
-    GcsDataflowProjectClient client = getGcsClient();
-    if (client == null) {
-      // We can't verify the staging locations because we don't have a GCS client
+    Credential credential = accountSelector.getSelectedCredential();
+    if (credential == null) {
+      // We can't verify the staging locations because no account was selected
       return;
     }
     if (stagingLocation.isEmpty()) {
@@ -232,7 +244,8 @@ public class RunOptionsDefaultsComponent {
       return;
     }
 
-    verifyJob = VerifyStagingLocationJob.create(client, stagingLocation);
+    String email = accountSelector.getSelectedEmail();
+    verifyJob = VerifyStagingLocationJob.create(email, credential, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
         verifyJob.getVerifyResult();
@@ -242,8 +255,12 @@ public class RunOptionsDefaultsComponent {
           public void run() {
             try {
               VerifyStagingLocationResult result = resultFuture.get();
-              if (result.getStagingLocation().equals(stagingLocationInput.getText())
-                  && result.isAccessible()) {
+              if (!result.email.equals(accountSelector.getSelectedEmail())
+                  || !result.stagingLocation.equals(stagingLocationInput.getText())) {
+                return;  // The result is no longer applicable.
+              }
+
+              if (result.accessible) {
                 messageTarget.setInfo("Found staging location " + stagingLocation);
                 createButton.setEnabled(false);
                 setPageComplete(true);

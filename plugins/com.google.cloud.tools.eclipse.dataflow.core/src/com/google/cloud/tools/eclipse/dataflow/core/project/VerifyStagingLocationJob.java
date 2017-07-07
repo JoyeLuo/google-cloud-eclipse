@@ -16,9 +16,9 @@
 
 package com.google.cloud.tools.eclipse.dataflow.core.project;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.tools.eclipse.dataflow.core.proxy.ListenableFutureProxy;
 import com.google.common.util.concurrent.SettableFuture;
-
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -28,26 +28,29 @@ import org.eclipse.core.runtime.jobs.Job;
  * A job that verifies a Staging Location.
  */
 public class VerifyStagingLocationJob extends Job {
-  private final GcsDataflowProjectClient client;
+  private final String email;
+  private final Credential credential;
   private final String stagingLocation;
   private final SettableFuture<VerifyStagingLocationResult> future;
 
   public static VerifyStagingLocationJob create(
-      GcsDataflowProjectClient client, String stagingLocation) {
-    return new VerifyStagingLocationJob(client, stagingLocation);
+      String email, Credential credential, String stagingLocation) {
+    return new VerifyStagingLocationJob(email, credential, stagingLocation);
   }
 
-  private VerifyStagingLocationJob(GcsDataflowProjectClient client, String stagingLocation) {
+  private VerifyStagingLocationJob(String email, Credential credential, String stagingLocation) {
     super("Verify Staging Location " + stagingLocation);
-    this.client = client;
+    this.email = email;
+    this.credential = credential;
     this.stagingLocation = stagingLocation;
     this.future = SettableFuture.create();
   }
 
   @Override
   protected IStatus run(IProgressMonitor monitor) {
+    GcsDataflowProjectClient gcsClient = GcsDataflowProjectClient.create(credential);
     VerifyStagingLocationResult result = new VerifyStagingLocationResult(
-        stagingLocation, client.locationIsAccessible(stagingLocation));
+        email, stagingLocation, gcsClient.locationIsAccessible(stagingLocation));
     future.set(result);
     return Status.OK_STATUS;
   }
@@ -57,24 +60,18 @@ public class VerifyStagingLocationJob extends Job {
   }
 
   /**
-   * The result of verifying a staging location, containing both the staging location and the
-   * verification result.
+   * The result of verifying a staging location, containing the staging location, the account email,
+   * and the verification result.
    */
   public static class VerifyStagingLocationResult {
-    private final String stagingLocation;
-    private final boolean accessible;
+    public final String email;
+    public final String stagingLocation;
+    public final boolean accessible;
 
-    public VerifyStagingLocationResult(String stagingLocation, boolean accessible) {
+    public VerifyStagingLocationResult(String email, String stagingLocation, boolean accessible) {
+      this.email = email;
       this.stagingLocation = stagingLocation;
       this.accessible = accessible;
-    }
-
-    public String getStagingLocation() {
-      return stagingLocation;
-    }
-
-    public boolean isAccessible() {
-      return accessible;
     }
   }
 }

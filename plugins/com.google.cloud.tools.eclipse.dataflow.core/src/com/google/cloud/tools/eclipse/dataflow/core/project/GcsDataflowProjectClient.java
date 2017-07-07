@@ -40,7 +40,7 @@ public class GcsDataflowProjectClient {
 
   private final Storage gcsClient;
 
-  public static GcsDataflowProjectClient createWithDefaultClient(Credential credential) {
+  public static GcsDataflowProjectClient create(Credential credential) {
     Storage storage = new Storage
         .Builder(Utils.getDefaultTransport(), Utils.getDefaultJsonFactory(), credential)
         .setApplicationName(CloudToolsInfo.USER_AGENT)
@@ -88,7 +88,6 @@ public class GcsDataflowProjectClient {
     } catch (IOException e) {
       return new StagingLocationVerificationResult(e.getMessage(), false);
     } finally {
-      monitor.worked(1);
       monitor.done();
     }
     return new StagingLocationVerificationResult(
