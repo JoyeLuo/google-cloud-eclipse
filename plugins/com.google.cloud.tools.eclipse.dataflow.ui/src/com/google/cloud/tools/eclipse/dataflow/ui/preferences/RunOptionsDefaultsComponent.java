@@ -141,9 +141,7 @@ public class RunOptionsDefaultsComponent {
     stagingLocationInput.setLayoutData(new GridData(
         SWT.FILL, SWT.CENTER, true, false, columns - STAGING_LOCATION_SPENT_COLUMNS, 1));
 
-    GetProjectStagingLocationsListener getProjectStagingLocationsListener =
-        new GetProjectStagingLocationsListener();
-    projectInput.addFocusListener(getProjectStagingLocationsListener);
+    projectInput.addFocusListener(new GetProjectStagingLocationsListener());
 
     completionListener = new SelectFirstMatchingPrefixListener(stagingLocationInput);
     stagingLocationInput.addModifyListener(completionListener);

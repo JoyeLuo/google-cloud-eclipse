@@ -17,9 +17,9 @@
 package com.google.cloud.tools.eclipse.googleapis.internal;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.util.Utils;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.appengine.v1.Appengine;
 import com.google.api.services.appengine.v1.Appengine.Apps;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
@@ -50,7 +50,7 @@ public class GoogleApiFactory implements IGoogleApiFactory {
 
   private IProxyService proxyService;
 
-  private final JsonFactory jsonFactory = new JacksonFactory();
+  private final JsonFactory jsonFactory = Utils.getDefaultJsonFactory();
   private final ProxyFactory proxyFactory;
   private LoadingCache<GoogleApiUrl, HttpTransport> transportCache;
 
@@ -86,7 +86,7 @@ public class GoogleApiFactory implements IGoogleApiFactory {
       HttpTransport transport = transportCache.get(GoogleApiUrl.CLOUDRESOURCE_MANAGER_API);
       Preconditions.checkNotNull(transport, "transport is null");
       Preconditions.checkNotNull(jsonFactory, "jsonFactory is null");
-      
+
       CloudResourceManager resourceManager =
           new CloudResourceManager.Builder(transport, jsonFactory, credential)
               .setApplicationName(CloudToolsInfo.USER_AGENT).build();
@@ -95,7 +95,7 @@ public class GoogleApiFactory implements IGoogleApiFactory {
       throw new GoogleApiException(ex);
     }
   }
-  
+
   @Override
   public Storage newStorageApi(Credential credential) throws GoogleApiException {
     try {
