@@ -32,7 +32,6 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.ButtonFactory;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener;
-import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener.OnCompleteListener;
 import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
@@ -148,10 +147,10 @@ public class RunOptionsDefaultsComponent {
 
     completionListener = new SelectFirstMatchingPrefixListener(stagingLocationInput);
     stagingLocationInput.addModifyListener(completionListener);
-    completionListener.addOnCompleteListener(new OnCompleteListener() {
+    stagingLocationInput.addModifyListener(new ModifyListener() {
       @Override
-      public void onComplete(String contents) {
-        verifyStagingLocation(contents);
+      public void modifyText(ModifyEvent event) {
+        verifyStagingLocation(stagingLocationInput.getText());
       }
     });
     createButton.addSelectionListener(new CreateStagingLocationListener());
@@ -223,28 +222,35 @@ public class RunOptionsDefaultsComponent {
    * Ensure the staging location specified in the input combo is valid.
    */
   private void verifyStagingLocation(final String stagingLocation) {
+    setPageComplete(false);
+    messageTarget.clear();
+
     if (verifyJob != null) {
       // Cancel any existing verifyJob
+      // FIXME: this has no effect, as "VerifyStagingLocationJob" doesn't honor cancellation.
       verifyJob.cancel();
     }
 
-    Credential credential = accountSelector.getSelectedCredential();
-    if (credential == null) {
-      // We can't verify the staging locations because no account was selected
-      return;
-    }
-    if (stagingLocation.isEmpty()) {
+    if (trimBucketName().isEmpty()) {
       // If the staging location is empty, we don't have anything to verify; and we don't have any
       // interesting messaging.
-      messageTarget.clear();
       setPageComplete(true);
       return;
-    } else if (!bucketNameOk()) {
-      setPageComplete(false);
+    }
+
+    IStatus status = bucketNameOk();
+    if (!status.isOK()) {
+      messageTarget.setError(status.getMessage());
       return;
     }
 
     String email = accountSelector.getSelectedEmail();
+    Credential credential = accountSelector.getSelectedCredential();
+    if (credential == null) {
+      // We can't verify the staging location because no account was selected
+      return;
+    }
+
     verifyJob = VerifyStagingLocationJob.create(email, credential, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
@@ -360,25 +366,23 @@ public class RunOptionsDefaultsComponent {
 
   private static final BucketNameValidator bucketNameValidator = new BucketNameValidator();
 
-  private boolean bucketNameOk() {
+  private String trimBucketName() {
     String bucketName = stagingLocationInput.getText().trim();
     if (bucketName.toLowerCase(Locale.US).startsWith("gs://")) {
       bucketName = bucketName.substring(5);
     }
-    IStatus status = bucketNameValidator.validate(bucketName);
-    if (!status.isOK()) {
-      messageTarget.setError(status.getMessage());
-      setPageComplete(false);
-    }
-    boolean enabled = status.isOK() && !bucketName.isEmpty();
-    return enabled;
+    return bucketName;
+  }
+
+  private IStatus bucketNameOk() {
+    return bucketNameValidator.validate(trimBucketName());
   }
 
   private class EnableCreateButton implements ModifyListener {
 
     @Override
     public void modifyText(ModifyEvent event) {
-      boolean enabled = bucketNameOk();
+      boolean enabled = !trimBucketName().isEmpty() && bucketNameOk().isOK();
       createButton.setEnabled(enabled);
     }
 

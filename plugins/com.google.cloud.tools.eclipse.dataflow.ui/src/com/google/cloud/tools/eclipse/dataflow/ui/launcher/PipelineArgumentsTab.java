@@ -36,6 +36,7 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.component.TextAndButtonCo
 import com.google.cloud.tools.eclipse.dataflow.ui.page.component.TextAndButtonSelectionListener;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.SettableFuture;
@@ -332,12 +333,10 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
     PipelineRunner runner = launchConfiguration.getRunner();
     Button runnerButton = runnerButtons.get(runner);
     if (runnerButton == null) {
-      runnerButtons
-          .get(PipelineLaunchConfiguration.defaultRunner(majorVersion))
-          .setSelection(true);
-    } else {
-      runnerButton.setSelection(true);
+      runnerButton = runnerButtons.get(PipelineLaunchConfiguration.defaultRunner(majorVersion));
     }
+    Preconditions.checkNotNull(runnerButton,
+        "runners for %s should always include the default runner", majorVersion);
     runnerGroup.getParent().redraw();
   }
 
@@ -436,9 +435,9 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
   }
 
   private boolean validateRequiredGroups(MissingRequiredProperties validationFailures) {
-    if (!validationFailures.getMissingGroups().isEmpty()) {
-      Map.Entry<String, Set<PipelineOptionsProperty>> missingGroupEntry =
-          Iterables.getFirst(validationFailures.getMissingGroups().entrySet(), null);
+    Map.Entry<String, Set<PipelineOptionsProperty>> missingGroupEntry =
+        Iterables.getFirst(validationFailures.getMissingGroups().entrySet(), null);
+    if (missingGroupEntry != null) {
       StringBuilder errorBuilder = new StringBuilder("Missing value for group ");
       errorBuilder.append(missingGroupEntry.getKey());
       errorBuilder.append(". Properties satisfying group requirement are ");
@@ -455,9 +454,9 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
   }
 
   private boolean validateRequiredProperties(MissingRequiredProperties validationFailures) {
-    if (!validationFailures.getMissingProperties().isEmpty()) {
-      PipelineOptionsProperty missingProperty =
-          Iterables.getFirst(validationFailures.getMissingProperties(), null);
+    PipelineOptionsProperty missingProperty =
+        Iterables.getFirst(validationFailures.getMissingProperties(), null);
+    if (missingProperty != null) {
       setErrorMessage("Missing required property " + missingProperty.getName());
       return false;
     }
