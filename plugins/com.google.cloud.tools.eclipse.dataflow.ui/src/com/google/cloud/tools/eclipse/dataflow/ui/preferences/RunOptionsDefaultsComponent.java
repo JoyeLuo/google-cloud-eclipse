@@ -276,7 +276,7 @@ public class RunOptionsDefaultsComponent {
               VerifyStagingLocationResult result = resultFuture.get();
               if (!result.email.equals(accountSelector.getSelectedEmail())
                   || !result.stagingLocation.equals(stagingLocationInput.getText())) {
-                return;  // The result is no longer applicable.
+                return;  // Input form changed; validation result no longer applicable
               }
 
               if (result.accessible) {
@@ -323,9 +323,7 @@ public class RunOptionsDefaultsComponent {
 
       String projectName = projectInput.getText();
       String stagingLocation = stagingLocationInput.getText();
-      GcsDataflowProjectClient gcsClient =
-          GcsDataflowProjectClient.create(apiFactory, credential);
-      StagingLocationVerificationResult result = gcsClient.createStagingLocation(
+      StagingLocationVerificationResult result = getGcsClient().createStagingLocation(
           projectName, stagingLocation, new NullProgressMonitor());
       if (result.isSuccessful()) {
         messageTarget.setInfo("Created staging location at " + stagingLocation);
