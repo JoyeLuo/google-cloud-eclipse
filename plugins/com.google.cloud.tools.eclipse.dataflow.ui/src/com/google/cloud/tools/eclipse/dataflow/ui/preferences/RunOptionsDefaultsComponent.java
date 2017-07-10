@@ -19,7 +19,6 @@ package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.core.project.FetchStagingLocationsJob;
 import com.google.cloud.tools.eclipse.dataflow.core.project.GcsDataflowProjectClient;
@@ -32,6 +31,7 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.ButtonFactory;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefixListener;
+import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
 import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
@@ -79,36 +79,43 @@ public class RunOptionsDefaultsComponent {
   private final Combo stagingLocationInput;
   private final Button createButton;
   private final AccountSelector accountSelector;
+  private final IGoogleApiFactory apiFactory;
 
   private VerifyStagingLocationJob verifyJob;
   private SelectFirstMatchingPrefixListener completionListener;
   private WizardPage page = null;
 
+  private static <T> T getService(Class<T> clazz) {
+    return PlatformUI.getWorkbench().getService(clazz);
+  }
+
   public RunOptionsDefaultsComponent(
-      Composite composite, int numColumns, MessageTarget messageTarget, DataflowPreferences prefs) {
-    this(composite, numColumns, messageTarget, prefs, null,
-        PlatformUI.getWorkbench().getService(IGoogleLoginService.class));
+      Composite target, int columns, MessageTarget messageTarget, DataflowPreferences preferences) {
+    this(target, columns, messageTarget, preferences, null,
+        getService(IGoogleLoginService.class), getService(IGoogleApiFactory.class));
+  }
+
+  public RunOptionsDefaultsComponent(Composite target, int columns, MessageTarget messageTarget,
+      DataflowPreferences preferences, WizardPage page) {
+    this(target, columns, messageTarget, preferences, page,
+        getService(IGoogleLoginService.class), getService(IGoogleApiFactory.class));
   }
 
   @VisibleForTesting
   RunOptionsDefaultsComponent(
-      Composite composite, int numColumns, MessageTarget messageTarget, DataflowPreferences prefs,
-      IGoogleLoginService loginService) {
-    this(composite, numColumns, messageTarget, prefs, null, loginService);
-  }
-
-  public RunOptionsDefaultsComponent(
       Composite target,
       int columns,
       MessageTarget messageTarget,
       DataflowPreferences preferences,
       WizardPage page,
-      IGoogleLoginService loginService) {
+      IGoogleLoginService loginService,
+      IGoogleApiFactory apiFactory) {
     checkArgument(columns >= 3, "DefaultRunOptions must be in a Grid with at least 3 columns");
     this.target = target;
     this.page = page;
     this.messageTarget = messageTarget;
     this.executor = DisplayExecutor.create(target.getDisplay());
+    this.apiFactory = apiFactory;
 
     Label accountLabel = new Label(target, SWT.NULL);
     accountLabel.setText("&Account:");
@@ -172,12 +179,6 @@ public class RunOptionsDefaultsComponent {
     messageTarget.setInfo("Set Pipeline Run Option Defaults");
   }
 
-  private GcsDataflowProjectClient getGcsClient() {
-    Preconditions.checkNotNull(accountSelector.getSelectedCredential());
-    Credential credential = accountSelector.getSelectedCredential();
-    return GcsDataflowProjectClient.create(credential);
-  }
-
   public Control getControl() {
     return target;
   }
@@ -217,7 +218,7 @@ public class RunOptionsDefaultsComponent {
     Credential credential = accountSelector.getSelectedCredential();
     if (!Strings.isNullOrEmpty(project) && credential != null) {
       ListenableFutureProxy<SortedSet<String>> stagingLocationsFuture =
-          FetchStagingLocationsJob.schedule(credential, project);
+          FetchStagingLocationsJob.schedule(credential, project, apiFactory);
       UpdateStagingLocationComboListener updateComboListener =
           new UpdateStagingLocationComboListener(stagingLocationsFuture);
       stagingLocationsFuture.addListener(updateComboListener, executor);
@@ -309,12 +310,16 @@ public class RunOptionsDefaultsComponent {
   private class CreateStagingLocationListener extends SelectionAdapter {
     @Override
     public void widgetSelected(SelectionEvent event) {
-      if (accountSelector.getSelectedCredential() == null) {
+      Credential credential = accountSelector.getSelectedCredential();
+      if (credential == null) {
         return;
       }
+
       String projectName = projectInput.getText();
       String stagingLocation = stagingLocationInput.getText();
-      StagingLocationVerificationResult result = getGcsClient().createStagingLocation(
+      GcsDataflowProjectClient gcsClient =
+          GcsDataflowProjectClient.create(apiFactory, credential);
+      StagingLocationVerificationResult result = gcsClient.createStagingLocation(
           projectName, stagingLocation, new NullProgressMonitor());
       if (result.isSuccessful()) {
         messageTarget.setInfo("Created staging location at " + stagingLocation);

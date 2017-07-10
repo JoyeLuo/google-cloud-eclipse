@@ -16,13 +16,17 @@
 
 package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 
+import static org.mockito.Mockito.when;
+
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
+import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
+import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.test.util.ui.CompositeUtil;
 import com.google.cloud.tools.eclipse.test.util.ui.ShellTestResource;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.widgets.Composite;
+import com.google.cloud.tools.login.Account;
+import com.google.common.collect.Sets;
 import org.eclipse.swt.widgets.Shell;
 import org.junit.Assert;
 import org.junit.Before;
@@ -39,15 +43,27 @@ public class RunOptionsDefaultsComponentTest {
 
   @Mock private DataflowPreferences preferences;
   @Mock private MessageTarget messageTarget;
+  @Mock private IGoogleLoginService loginService;
+  @Mock private IGoogleApiFactory apiFactory;
+  @Mock private Account account1;
+  @Mock private Account account2;
 
   private RunOptionsDefaultsComponent component;
-  private Composite composite;
+  private Shell shell;
 
   @Before
   public void setUp() {
-    Shell shell = shellResource.getShell();
-    composite = new Composite(shell, SWT.NONE);
-    component = new RunOptionsDefaultsComponent(composite, 3, messageTarget, preferences, null);
+    when(account1.getEmail()).thenReturn("alice@example.com");
+    when(account2.getEmail()).thenReturn("bob@example.com");
+    //when(account1.getOAuth2Credential()).thenReturn(mock(Credential.class));
+    //when(account2.getOAuth2Credential()).thenReturn(mock(Credential.class));
+
+    //when(loginService.hasAccounts()).thenReturn(false);
+    when(loginService.getAccounts()).thenReturn(Sets.newHashSet(account1, account2));
+
+    shell = shellResource.getShell();
+    component = new RunOptionsDefaultsComponent(
+        shell, 3, messageTarget, preferences, null, loginService, apiFactory);
   }
 
   @Test
@@ -75,12 +91,30 @@ public class RunOptionsDefaultsComponentTest {
 
   @Test
   public void testGetControl() {
-    Assert.assertSame(composite, component.getControl());
+    Assert.assertSame(shell, component.getControl());
   }
 
   @Test
   public void testAccountSelector() {
-    AccountSelector selector = CompositeUtil.findControl(composite, AccountSelector.class);
+    AccountSelector selector = CompositeUtil.findControl(shell, AccountSelector.class);
     Assert.assertNotNull(selector);
+  }
+
+  @Test
+  public void testAccountSelector_twoAccounts() {
+    AccountSelector selector = CompositeUtil.findControl(shell, AccountSelector.class);
+    Assert.assertEquals(2, selector.getAccountCount());
+
+    int index1 = selector.selectAccount("alice@example.com");
+    Assert.assertEquals(0, index1);
+    Assert.assertEquals("alice@example.com", selector.getSelectedEmail());
+
+    int index2 = selector.selectAccount("bob@example.com");
+    Assert.assertEquals(1, index2);
+    Assert.assertEquals("bob@example.com", selector.getSelectedEmail());
+  }
+
+  @Test
+  public void testBucketValidation() {
   }
 }

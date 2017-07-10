@@ -17,12 +17,10 @@
 package com.google.cloud.tools.eclipse.dataflow.core.project;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.util.Utils;
-import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Buckets;
-import com.google.cloud.tools.eclipse.util.CloudToolsInfo;
-import com.google.common.annotations.VisibleForTesting;
+import com.google.cloud.tools.eclipse.googleapis.GoogleApiException;
+import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.List;
@@ -38,27 +36,27 @@ import org.eclipse.core.runtime.SubMonitor;
 public class GcsDataflowProjectClient {
   private static final String GCS_PREFIX = "gs://";
 
-  private final Storage gcsClient;
+  private final IGoogleApiFactory apiFactory;
+  private final Credential credential;
 
-  public static GcsDataflowProjectClient create(Credential credential) {
-    Storage storage = new Storage
-        .Builder(Utils.getDefaultTransport(), Utils.getDefaultJsonFactory(), credential)
-        .setApplicationName(CloudToolsInfo.USER_AGENT)
-        .build();
-    return new GcsDataflowProjectClient(storage);
+  public static GcsDataflowProjectClient create(
+      IGoogleApiFactory apiFactory, Credential credential) {
+    return new GcsDataflowProjectClient(apiFactory, credential);
   }
 
-  @VisibleForTesting
-  GcsDataflowProjectClient(Storage gcsClient) {
-    this.gcsClient = gcsClient;
+  private GcsDataflowProjectClient(IGoogleApiFactory apiFactory, Credential credential) {
+    this.apiFactory = apiFactory;
+    this.credential = credential;
   }
 
   /**
    * Gets a collection of potential Staging Locations.
+   * @throws GoogleApiException
    */
-  public SortedSet<String> getPotentialStagingLocations(String projectName) throws IOException {
+  public SortedSet<String> getPotentialStagingLocations(String projectName)
+      throws IOException, GoogleApiException {
     SortedSet<String> result = new TreeSet<>();
-    Buckets buckets = gcsClient.buckets().list(projectName).execute();
+    Buckets buckets = apiFactory.newStorageApi(credential).buckets().list(projectName).execute();
     List<Bucket> bucketList = buckets.getItems();
     for (Bucket bucket : bucketList) {
       result.add(GCS_PREFIX + bucket.getName());
@@ -85,13 +83,13 @@ public class GcsDataflowProjectClient {
       Bucket newBucket = new Bucket();
       newBucket.setName(bucketName);
       gcsClient.buckets().insert(projectName, newBucket).execute();
+      return new StagingLocationVerificationResult(
+          String.format("Bucket %s created", bucketName), true);
     } catch (IOException e) {
       return new StagingLocationVerificationResult(e.getMessage(), false);
     } finally {
       monitor.done();
     }
-    return new StagingLocationVerificationResult(
-        String.format("Bucket %s created", bucketName), true);
   }
 
   private static String toGcsBucketName(String stagingLocation) {
@@ -124,9 +122,9 @@ public class GcsDataflowProjectClient {
   boolean locationIsAccessible(String stagingLocation) {
     String bucketName = toGcsBucketName(stagingLocation);
     try {
-      gcsClient.buckets().get(bucketName).execute();
+      apiFactory.newStorageApi(credential).buckets().get(bucketName).execute();
       return true;
-    } catch (IOException ex) {
+    } catch (IOException | GoogleApiException ex) {
       return false;
     }
   }
