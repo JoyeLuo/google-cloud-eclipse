@@ -18,6 +18,8 @@ package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
+import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
+import com.google.cloud.tools.eclipse.test.util.ui.CompositeUtil;
 import com.google.cloud.tools.eclipse.test.util.ui.ShellTestResource;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
@@ -32,9 +34,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RunOptionsDefaultsComponentTest {
-  
+
   @Rule public ShellTestResource shellResource = new ShellTestResource();
-  
+
   @Mock private DataflowPreferences preferences;
   @Mock private MessageTarget messageTarget;
 
@@ -45,7 +47,7 @@ public class RunOptionsDefaultsComponentTest {
   public void setUp() {
     Shell shell = shellResource.getShell();
     composite = new Composite(shell, SWT.NONE);
-    component = new RunOptionsDefaultsComponent(composite, 3, messageTarget, preferences);
+    component = new RunOptionsDefaultsComponent(composite, 3, messageTarget, preferences, null);
   }
 
   @Test
@@ -57,13 +59,13 @@ public class RunOptionsDefaultsComponentTest {
       Assert.assertNotNull(ex.getMessage());
     }
   }
-  
+
   @Test
   public void testStagingLocation() {
     component.setStagingLocationText("foobar");
     Assert.assertEquals("gs://foobar", component.getStagingLocation());
   }
-  
+
   @Test
   public void testCloudProjectText() {
     Assert.assertEquals("", component.getProject());
@@ -74,5 +76,11 @@ public class RunOptionsDefaultsComponentTest {
   @Test
   public void testGetControl() {
     Assert.assertSame(composite, component.getControl());
+  }
+
+  @Test
+  public void testAccountSelector() {
+    AccountSelector selector = CompositeUtil.findControl(composite, AccountSelector.class);
+    Assert.assertNotNull(selector);
   }
 }

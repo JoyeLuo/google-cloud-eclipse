@@ -35,6 +35,7 @@ import com.google.cloud.tools.eclipse.dataflow.ui.util.SelectFirstMatchingPrefix
 import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.util.Locale;
 import java.util.SortedSet;
@@ -84,11 +85,25 @@ public class RunOptionsDefaultsComponent {
   private WizardPage page = null;
 
   public RunOptionsDefaultsComponent(
+      Composite composite, int numColumns, MessageTarget messageTarget, DataflowPreferences prefs) {
+    this(composite, numColumns, messageTarget, prefs, null,
+        PlatformUI.getWorkbench().getService(IGoogleLoginService.class));
+  }
+
+  @VisibleForTesting
+  RunOptionsDefaultsComponent(
+      Composite composite, int numColumns, MessageTarget messageTarget, DataflowPreferences prefs,
+      IGoogleLoginService loginService) {
+    this(composite, numColumns, messageTarget, prefs, null, loginService);
+  }
+
+  public RunOptionsDefaultsComponent(
       Composite target,
       int columns,
       MessageTarget messageTarget,
       DataflowPreferences preferences,
-      WizardPage page) {
+      WizardPage page,
+      IGoogleLoginService loginService) {
     checkArgument(columns >= 3, "DefaultRunOptions must be in a Grid with at least 3 columns");
     this.target = target;
     this.page = page;
@@ -97,8 +112,6 @@ public class RunOptionsDefaultsComponent {
 
     Label accountLabel = new Label(target, SWT.NULL);
     accountLabel.setText("&Account:");
-    IGoogleLoginService loginService =
-        PlatformUI.getWorkbench().getService(IGoogleLoginService.class);
     accountSelector = new AccountSelector(target, loginService, "Add a new account...");
 
     Label projectInputLabel = new Label(target, SWT.NULL);
@@ -157,11 +170,6 @@ public class RunOptionsDefaultsComponent {
 
     updateStagingLocations(project);
     messageTarget.setInfo("Set Pipeline Run Option Defaults");
-  }
-
-  public RunOptionsDefaultsComponent(
-      Composite composite, int numColumns, MessageTarget messageTarget, DataflowPreferences prefs) {
-    this(composite, numColumns, messageTarget, prefs, null);
   }
 
   private GcsDataflowProjectClient getGcsClient() {
