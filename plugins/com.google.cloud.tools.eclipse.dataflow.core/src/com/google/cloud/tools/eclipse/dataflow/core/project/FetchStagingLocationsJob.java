@@ -16,10 +16,7 @@
 
 package com.google.cloud.tools.eclipse.dataflow.core.project;
 
-import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.tools.eclipse.dataflow.core.proxy.ListenableFutureProxy;
-import com.google.cloud.tools.eclipse.googleapis.GoogleApiException;
-import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
 import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import java.util.SortedSet;
@@ -33,26 +30,23 @@ import org.eclipse.core.runtime.jobs.Job;
  * GcsDataflowProjectClient}.
  */
 public class FetchStagingLocationsJob extends Job {
-  private final Credential credential;
+  private final GcsDataflowProjectClient gcsClient;
+
   private final String cloudProject;
   private final SettableFuture<SortedSet<String>> stagingLocations;
-  private final IGoogleApiFactory apiFactory;
 
-  private FetchStagingLocationsJob(Credential credential, String cloudProject,
-      IGoogleApiFactory apiFactory) {
+  private FetchStagingLocationsJob(GcsDataflowProjectClient gcsClient, String cloudProject) {
     super("Update Status Locations for project " + cloudProject);
-    this.credential = credential;
+    this.gcsClient = gcsClient;
     this.cloudProject = cloudProject;
-    this.apiFactory = apiFactory;
     this.stagingLocations = SettableFuture.create();
   }
 
   @Override
   protected IStatus run(IProgressMonitor monitor) {
     try {
-      GcsDataflowProjectClient gcsClient = GcsDataflowProjectClient.create(apiFactory, credential);
       stagingLocations.set(gcsClient.getPotentialStagingLocations(cloudProject));
-    } catch (IOException | GoogleApiException ex) {
+    } catch (IOException ex) {
       stagingLocations.setException(ex);
     }
     return Status.OK_STATUS;
@@ -63,8 +57,8 @@ public class FetchStagingLocationsJob extends Job {
    * client, schedules the job, and returns a future containing the results of the job.
    */
   public static ListenableFutureProxy<SortedSet<String>> schedule(
-      Credential credential, String project, IGoogleApiFactory apiFactory) {
-    FetchStagingLocationsJob job = new FetchStagingLocationsJob(credential, project, apiFactory);
+      GcsDataflowProjectClient client, String project) {
+    FetchStagingLocationsJob job = new FetchStagingLocationsJob(client, project);
     job.schedule();
     return new ListenableFutureProxy<>(job.stagingLocations);
   }

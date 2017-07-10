@@ -19,6 +19,7 @@ package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.util.Preconditions;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.core.project.FetchStagingLocationsJob;
 import com.google.cloud.tools.eclipse.dataflow.core.project.GcsDataflowProjectClient;
@@ -179,6 +180,12 @@ public class RunOptionsDefaultsComponent {
     messageTarget.setInfo("Set Pipeline Run Option Defaults");
   }
 
+  private GcsDataflowProjectClient getGcsClient() {
+    Preconditions.checkNotNull(accountSelector.getSelectedCredential());
+    Credential credential = accountSelector.getSelectedCredential();
+    return GcsDataflowProjectClient.create(apiFactory, credential);
+  }
+
   public Control getControl() {
     return target;
   }
@@ -218,7 +225,7 @@ public class RunOptionsDefaultsComponent {
     Credential credential = accountSelector.getSelectedCredential();
     if (!Strings.isNullOrEmpty(project) && credential != null) {
       ListenableFutureProxy<SortedSet<String>> stagingLocationsFuture =
-          FetchStagingLocationsJob.schedule(credential, project, apiFactory);
+          FetchStagingLocationsJob.schedule(getGcsClient(), project);
       UpdateStagingLocationComboListener updateComboListener =
           new UpdateStagingLocationComboListener(stagingLocationsFuture);
       stagingLocationsFuture.addListener(updateComboListener, executor);
@@ -237,7 +244,6 @@ public class RunOptionsDefaultsComponent {
       // FIXME: this has no effect, as "VerifyStagingLocationJob" doesn't honor cancellation.
       verifyJob.cancel();
     }
-
     if (trimBucketName().isEmpty()) {
       // If the staging location is empty, we don't have anything to verify; and we don't have any
       // interesting messaging.
@@ -245,7 +251,7 @@ public class RunOptionsDefaultsComponent {
       return;
     }
 
-    IStatus status = bucketNameOk();
+    IStatus status = bucketNameStatus();
     if (!status.isOK()) {
       messageTarget.setError(status.getMessage());
       return;
@@ -258,7 +264,7 @@ public class RunOptionsDefaultsComponent {
       return;
     }
 
-    verifyJob = VerifyStagingLocationJob.create(email, credential, stagingLocation);
+    verifyJob = VerifyStagingLocationJob.create(getGcsClient(), email, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
         verifyJob.getVerifyResult();
@@ -385,7 +391,7 @@ public class RunOptionsDefaultsComponent {
     return bucketName;
   }
 
-  private IStatus bucketNameOk() {
+  private IStatus bucketNameStatus() {
     return bucketNameValidator.validate(trimBucketName());
   }
 
@@ -393,7 +399,7 @@ public class RunOptionsDefaultsComponent {
 
     @Override
     public void modifyText(ModifyEvent event) {
-      boolean enabled = !trimBucketName().isEmpty() && bucketNameOk().isOK();
+      boolean enabled = !trimBucketName().isEmpty() && bucketNameStatus().isOK();
       createButton.setEnabled(enabled);
     }
 

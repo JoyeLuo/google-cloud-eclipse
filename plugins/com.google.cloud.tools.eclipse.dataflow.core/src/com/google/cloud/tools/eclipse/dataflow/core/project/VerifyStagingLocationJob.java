@@ -16,9 +16,7 @@
 
 package com.google.cloud.tools.eclipse.dataflow.core.project;
 
-import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.tools.eclipse.dataflow.core.proxy.ListenableFutureProxy;
-import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
 import com.google.common.util.concurrent.SettableFuture;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -29,32 +27,29 @@ import org.eclipse.core.runtime.jobs.Job;
  * A job that verifies a Staging Location.
  */
 public class VerifyStagingLocationJob extends Job {
+  private final GcsDataflowProjectClient client;
   private final String email;
-  private final Credential credential;
   private final String stagingLocation;
   private final SettableFuture<VerifyStagingLocationResult> future;
-  private final IGoogleApiFactory apiFactory;
 
   public static VerifyStagingLocationJob create(
-      String email, Credential credential, String stagingLocation, IGoogleApiFactory apiFactory) {
-    return new VerifyStagingLocationJob(email, credential, stagingLocation, apiFactory);
+      GcsDataflowProjectClient client, String email, String stagingLocation) {
+    return new VerifyStagingLocationJob(client, email, stagingLocation);
   }
 
-  private VerifyStagingLocationJob(String email, Credential credential, String stagingLocation,
-      IGoogleApiFactory apiFactory) {
+  private VerifyStagingLocationJob(GcsDataflowProjectClient client, String email,
+      String stagingLocation) {
     super("Verify Staging Location " + stagingLocation);
+    this.client = client;
     this.email = email;
-    this.credential = credential;
     this.stagingLocation = stagingLocation;
     this.future = SettableFuture.create();
-    this.apiFactory = apiFactory;
   }
 
   @Override
   protected IStatus run(IProgressMonitor monitor) {
-    GcsDataflowProjectClient gcsClient = GcsDataflowProjectClient.create(apiFactory, credential);
     VerifyStagingLocationResult result = new VerifyStagingLocationResult(
-        email, stagingLocation, gcsClient.locationIsAccessible(stagingLocation));
+        email, stagingLocation, client.locationIsAccessible(stagingLocation));
     future.set(result);
     return Status.OK_STATUS;
   }
