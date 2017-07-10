@@ -226,7 +226,7 @@ public class RunOptionsDefaultsComponent {
       // FIXME: this has no effect, as "VerifyStagingLocationJob" doesn't honor cancellation.
       verifyJob.cancel();
     }
-    if (stagingLocation.isEmpty()) {
+    if (trimBucketName().isEmpty()) {
       // If the staging location is empty, we don't have anything to verify; and we don't have any
       // interesting messaging.
       setPageComplete(true);
@@ -354,20 +354,23 @@ public class RunOptionsDefaultsComponent {
 
   private static final BucketNameValidator bucketNameValidator = new BucketNameValidator();
 
-  private IStatus bucketNameOk() {
+  private String trimBucketName() {
     String bucketName = stagingLocationInput.getText().trim();
     if (bucketName.toLowerCase(Locale.US).startsWith("gs://")) {
       bucketName = bucketName.substring(5);
     }
-    return bucketNameValidator.validate(bucketName);
+    return bucketName;
+  }
+
+  private IStatus bucketNameOk() {
+    return bucketNameValidator.validate(trimBucketName());
   }
 
   private class EnableCreateButton implements ModifyListener {
 
     @Override
     public void modifyText(ModifyEvent event) {
-      boolean notEmpty = !stagingLocationInput.getText().trim().isEmpty();
-      boolean enabled = !notEmpty && bucketNameOk().isOK();
+      boolean enabled = !trimBucketName().isEmpty() && bucketNameOk().isOK();
       createButton.setEnabled(enabled);
     }
 
