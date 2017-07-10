@@ -29,6 +29,8 @@ class TransportCacheLoader extends CacheLoader<GoogleApiUrl, HttpTransport> {
     this.proxyFactory = proxyFactory;
   }
 
+  // Should not throw any checked exception, as cache clients use "getUnchecked()" instead of
+  // "get()": https://github.com/GoogleCloudPlatform/google-cloud-eclipse/issues/2130
   @Override
   public HttpTransport load(GoogleApiUrl url) {
     ConnectionFactory connectionFactory =
