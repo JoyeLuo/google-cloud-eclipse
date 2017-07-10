@@ -22,7 +22,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.common.cache.CacheLoader;
 
 class TransportCacheLoader extends CacheLoader<GoogleApiUrl, HttpTransport> {
-  
+
   private final ProxyFactory proxyFactory;
 
   TransportCacheLoader(ProxyFactory proxyFactory) {
@@ -30,9 +30,9 @@ class TransportCacheLoader extends CacheLoader<GoogleApiUrl, HttpTransport> {
   }
 
   @Override
-  public HttpTransport load(GoogleApiUrl url) throws Exception {
+  public HttpTransport load(GoogleApiUrl url) {
     ConnectionFactory connectionFactory =
-        new TimeoutAwareConnectionFactory(proxyFactory.createProxy(url.getUrl()));
+        new TimeoutAwareConnectionFactory(proxyFactory.createProxy(url.toUri()));
     return new NetHttpTransport.Builder().setConnectionFactory(connectionFactory).build();
   }
 }
