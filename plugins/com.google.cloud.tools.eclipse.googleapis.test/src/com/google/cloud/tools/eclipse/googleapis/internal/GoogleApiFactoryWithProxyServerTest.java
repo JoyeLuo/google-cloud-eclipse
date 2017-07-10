@@ -58,7 +58,8 @@ public class GoogleApiFactoryWithProxyServerTest {
   @Before
   public void setUp() {
     googleApiFactory = new GoogleApiFactory();
-    when(transportCache.getUnchecked(any(GoogleApiUrl.class))).thenReturn(mock(HttpTransport.class));
+    when(transportCache.getUnchecked(any(GoogleApiUrl.class)))
+        .thenReturn(mock(HttpTransport.class));
     googleApiFactory.setTransportCache(transportCache);
   }
 

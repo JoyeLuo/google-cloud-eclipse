@@ -38,7 +38,7 @@ public class ProxyFactory {
   @VisibleForTesting
   public Proxy createProxy(URI uri) {
     Preconditions.checkNotNull(uri, "uri is null");
-    Preconditions.checkArgument(uri.getScheme().equals("http"), "http is not a supported schema");
+    Preconditions.checkArgument(!"http".equals(uri.getScheme()), "http is not a supported schema");
 
     IProxyService proxyServiceCopy = proxyService;
     if (proxyServiceCopy == null) {
