@@ -88,7 +88,7 @@ public class WritableDataflowPreferences implements DataflowPreferences {
     Map<String, String> result = new HashMap<>();
     String defaultAccountEmail = getDefaultAccountEmail();
     if (defaultAccountEmail != null) {
-      result.put(PROJECT_PROPERTY, defaultAccountEmail);
+      result.put(ACCOUNT_EMAIL_PROPERTY, defaultAccountEmail);
     }
 
     String defaultProject = getDefaultProject();

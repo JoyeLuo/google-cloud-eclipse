@@ -127,8 +127,8 @@ public class DefaultedPipelineOptionsComponent {
    */
   private void updateDefaultableInputValues() {
     if (isUseDefaultOptions()) {
-      customValues.put(DataflowPreferences.ACCOUNT_EMAIL_PROPERTY,
-          defaultOptions.getAccountEmail());
+      customValues.put(
+          DataflowPreferences.ACCOUNT_EMAIL_PROPERTY, defaultOptions.getAccountEmail());
       customValues.put(DataflowPreferences.PROJECT_PROPERTY, defaultOptions.getProject());
       customValues.put(
           DataflowPreferences.STAGING_LOCATION_PROPERTY, defaultOptions.getStagingLocation());

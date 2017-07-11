@@ -338,6 +338,7 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
     }
     Preconditions.checkNotNull(runnerButton,
         "runners for %s should always include the default runner", majorVersion);
+    runnerButton.setSelection(true);
     runnerGroup.getParent().redraw();
   }
 
