@@ -19,7 +19,6 @@ package com.google.cloud.tools.eclipse.dataflow.ui.launcher;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.dataflow.ui.preferences.RunOptionsDefaultsComponent;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,14 +41,12 @@ import org.eclipse.swt.widgets.Group;
 public class DefaultedPipelineOptionsComponent {
   private Group defaultsGroup;
 
-  @VisibleForTesting
-  Button useDefaultsButton;
+  private Button useDefaultsButton;
 
   private DataflowPreferences preferences;
   private Map<String, String> customValues;
 
-  @VisibleForTesting
-  RunOptionsDefaultsComponent defaultOptions;
+  private RunOptionsDefaultsComponent defaultOptions;
 
   public DefaultedPipelineOptionsComponent(Composite parent, Object layoutData,
       MessageTarget messageTarget, DataflowPreferences preferences) {
