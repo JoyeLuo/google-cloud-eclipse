@@ -86,20 +86,16 @@ public class RunOptionsDefaultsComponent {
   private SelectFirstMatchingPrefixListener completionListener;
   private WizardPage page = null;
 
-  private static <T> T getService(Class<T> clazz) {
-    return PlatformUI.getWorkbench().getService(clazz);
-  }
-
   public RunOptionsDefaultsComponent(
       Composite target, int columns, MessageTarget messageTarget, DataflowPreferences preferences) {
-    this(target, columns, messageTarget, preferences, null,
-        getService(IGoogleLoginService.class), getService(IGoogleApiFactory.class));
+    this(target, columns, messageTarget, preferences, null);
   }
 
   public RunOptionsDefaultsComponent(Composite target, int columns, MessageTarget messageTarget,
       DataflowPreferences preferences, WizardPage page) {
     this(target, columns, messageTarget, preferences, page,
-        getService(IGoogleLoginService.class), getService(IGoogleApiFactory.class));
+        PlatformUI.getWorkbench().getService(IGoogleLoginService.class),
+        PlatformUI.getWorkbench().getService(IGoogleApiFactory.class));
   }
 
   @VisibleForTesting

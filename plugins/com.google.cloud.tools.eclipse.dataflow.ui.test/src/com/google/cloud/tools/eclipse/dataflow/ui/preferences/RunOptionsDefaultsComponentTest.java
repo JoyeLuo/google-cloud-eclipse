@@ -72,7 +72,6 @@ public class RunOptionsDefaultsComponentTest {
     when(account1.getOAuth2Credential()).thenReturn(credentialAlice);
     when(account2.getOAuth2Credential()).thenReturn(credentialBob);
 
-    //when(loginService.hasAccounts()).thenReturn(false);
     when(loginService.getAccounts()).thenReturn(Sets.newHashSet(account1, account2));
 
     mockStorageApiBucketList(credentialAlice, "alice-bucket-1", "alice-bucket-2");
