@@ -38,6 +38,7 @@ import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSortedSet;
 import java.util.Locale;
 import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
@@ -158,10 +159,16 @@ public class RunOptionsDefaultsComponent {
     stagingLocationInput.setLayoutData(new GridData(
         SWT.FILL, SWT.CENTER, true, false, columns - STAGING_LOCATION_SPENT_COLUMNS, 1));
 
-    GetProjectStagingLocationsListener getProjectStagingLocationsListener =
-        new GetProjectStagingLocationsListener();
-    accountSelector.addSelectionListener(getProjectStagingLocationsListener);
-    projectInput.addFocusListener(getProjectStagingLocationsListener);
+    accountSelector.addSelectionListener(new Runnable() {
+      @Override
+      public void run() {
+        stagingLocationInput.removeAll();
+        completionListener.setContents(ImmutableSortedSet.<String>of());
+        updateStagingLocations(getProject());
+      }
+    });
+
+    projectInput.addFocusListener(new GetProjectStagingLocationsListener());
 
     completionListener = new SelectFirstMatchingPrefixListener(stagingLocationInput);
     stagingLocationInput.addModifyListener(completionListener);
@@ -301,15 +308,10 @@ public class RunOptionsDefaultsComponent {
    * the buckets and update the target combo with the retrieved buckets, and update the {@link
    * SelectFirstMatchingPrefixListener} with new autocompletions.
    */
-  private class GetProjectStagingLocationsListener extends FocusAdapter implements Runnable {
-    @Override
-    public void run() {
-      updateStagingLocations(getProject());
-    }
-
+  private class GetProjectStagingLocationsListener extends FocusAdapter {
     @Override
     public void focusLost(FocusEvent event) {
-      run();
+      updateStagingLocations(getProject());
     }
   }
 

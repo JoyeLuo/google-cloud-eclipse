@@ -56,26 +56,26 @@ public class RunOptionsDefaultsComponentTest {
   @Mock private MessageTarget messageTarget;
   @Mock private IGoogleLoginService loginService;
   @Mock private IGoogleApiFactory apiFactory;
-  @Mock private Account account1;
-  @Mock private Account account2;
 
   private RunOptionsDefaultsComponent component;
   private Shell shell;
 
   @Before
   public void setUp() throws IOException {
-    Credential credentialAlice = mock(Credential.class);
-    Credential credentialBob = mock(Credential.class);
+    Account account1 = mock(Account.class);
+    Account account2 = mock(Account.class);
+    Credential credential1 = mock(Credential.class);
+    Credential credential2 = mock(Credential.class);
 
     when(account1.getEmail()).thenReturn("alice@example.com");
     when(account2.getEmail()).thenReturn("bob@example.com");
-    when(account1.getOAuth2Credential()).thenReturn(credentialAlice);
-    when(account2.getOAuth2Credential()).thenReturn(credentialBob);
+    when(account1.getOAuth2Credential()).thenReturn(credential1);
+    when(account2.getOAuth2Credential()).thenReturn(credential2);
 
     when(loginService.getAccounts()).thenReturn(Sets.newHashSet(account1, account2));
 
-    mockStorageApiBucketList(credentialAlice, "alice-bucket-1", "alice-bucket-2");
-    mockStorageApiBucketList(credentialBob, "bob-bucket");
+    mockStorageApiBucketList(credential1, "alice-bucket-1", "alice-bucket-2");
+    mockStorageApiBucketList(credential2, "bob-bucket");
 
     shell = shellResource.getShell();
     component = new RunOptionsDefaultsComponent(
@@ -152,7 +152,7 @@ public class RunOptionsDefaultsComponentTest {
   }
 
   @Test
-  public void testAccountSelector_bucketLoaded() throws InterruptedException {
+  public void testAccountSelector_loadBucketCombo() throws InterruptedException {
     component.setCloudProjectText("some-gcp-project-id");
     AccountSelector selector = CompositeUtil.findControl(shell, AccountSelector.class);
 
