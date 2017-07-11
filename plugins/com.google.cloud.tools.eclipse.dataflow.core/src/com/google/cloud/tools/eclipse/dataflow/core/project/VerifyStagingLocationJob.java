@@ -37,8 +37,8 @@ public class VerifyStagingLocationJob extends Job {
     return new VerifyStagingLocationJob(client, email, stagingLocation);
   }
 
-  private VerifyStagingLocationJob(GcsDataflowProjectClient client, String email,
-      String stagingLocation) {
+  private VerifyStagingLocationJob(GcsDataflowProjectClient client,
+      String email, String stagingLocation) {
     super("Verify Staging Location " + stagingLocation);
     this.client = client;
     this.email = email;
@@ -59,8 +59,8 @@ public class VerifyStagingLocationJob extends Job {
   }
 
   /**
-   * The result of verifying a staging location, containing the staging location, the account email,
-   * and the verification result.
+   * The result of verifying a staging location: the staging location, the account email used
+   * to access the location, and the verification result.
    */
   public static class VerifyStagingLocationResult {
     public final String email;

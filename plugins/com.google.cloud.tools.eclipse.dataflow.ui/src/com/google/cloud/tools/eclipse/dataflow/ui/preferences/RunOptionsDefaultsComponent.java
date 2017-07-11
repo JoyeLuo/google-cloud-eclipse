@@ -162,7 +162,10 @@ public class RunOptionsDefaultsComponent {
     stagingLocationInput.setLayoutData(new GridData(
         SWT.FILL, SWT.CENTER, true, false, columns - STAGING_LOCATION_SPENT_COLUMNS, 1));
 
-    projectInput.addFocusListener(new GetProjectStagingLocationsListener());
+    GetProjectStagingLocationsListener getProjectStagingLocationsListener =
+        new GetProjectStagingLocationsListener();
+    accountSelector.addSelectionListener(getProjectStagingLocationsListener);
+    projectInput.addFocusListener(getProjectStagingLocationsListener);
 
     completionListener = new SelectFirstMatchingPrefixListener(stagingLocationInput);
     stagingLocationInput.addModifyListener(completionListener);
@@ -298,14 +301,19 @@ public class RunOptionsDefaultsComponent {
   }
 
   /**
-   * Whenever focus is lost, retrieve all of the buckets and update the target combo with the
-   * retrieved buckets, and update the {@link SelectFirstMatchingPrefixListener} with new
-   * autocompletions.
+   * Whenever focus on the project ID field is lost or account selection changes, retrieve all of
+   * the buckets and update the target combo with the retrieved buckets, and update the {@link
+   * SelectFirstMatchingPrefixListener} with new autocompletions.
    */
-  private class GetProjectStagingLocationsListener extends FocusAdapter {
+  private class GetProjectStagingLocationsListener extends FocusAdapter implements Runnable {
+    @Override
+    public void run() {
+      updateStagingLocations(getProject());
+    }
+
     @Override
     public void focusLost(FocusEvent event) {
-      updateStagingLocations(getProject());
+      run();
     }
   }
 

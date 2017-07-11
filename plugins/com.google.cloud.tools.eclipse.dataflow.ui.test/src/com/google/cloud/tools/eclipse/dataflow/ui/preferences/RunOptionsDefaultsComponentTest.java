@@ -16,8 +16,14 @@
 
 package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Buckets;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.ui.page.MessageTarget;
 import com.google.cloud.tools.eclipse.googleapis.IGoogleApiFactory;
@@ -27,6 +33,11 @@ import com.google.cloud.tools.eclipse.test.util.ui.CompositeUtil;
 import com.google.cloud.tools.eclipse.test.util.ui.ShellTestResource;
 import com.google.cloud.tools.login.Account;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.eclipse.swt.widgets.Combo;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.junit.Assert;
 import org.junit.Before;
@@ -52,18 +63,45 @@ public class RunOptionsDefaultsComponentTest {
   private Shell shell;
 
   @Before
-  public void setUp() {
+  public void setUp() throws IOException {
+    Credential credentialAlice = mock(Credential.class);
+    Credential credentialBob = mock(Credential.class);
+
     when(account1.getEmail()).thenReturn("alice@example.com");
     when(account2.getEmail()).thenReturn("bob@example.com");
-    //when(account1.getOAuth2Credential()).thenReturn(mock(Credential.class));
-    //when(account2.getOAuth2Credential()).thenReturn(mock(Credential.class));
+    when(account1.getOAuth2Credential()).thenReturn(credentialAlice);
+    when(account2.getOAuth2Credential()).thenReturn(credentialBob);
 
     //when(loginService.hasAccounts()).thenReturn(false);
     when(loginService.getAccounts()).thenReturn(Sets.newHashSet(account1, account2));
 
+    mockStorageApiBucketList(credentialAlice, "alice-bucket-1", "alice-bucket-2");
+    mockStorageApiBucketList(credentialBob, "bob-bucket");
+
     shell = shellResource.getShell();
     component = new RunOptionsDefaultsComponent(
         shell, 3, messageTarget, preferences, null, loginService, apiFactory);
+  }
+
+  private void mockStorageApiBucketList(Credential credential, String... bucketNames)
+      throws IOException {
+    Storage storageApi = mock(Storage.class);
+    Storage.Buckets bucketsApi = mock(Storage.Buckets.class);
+    Storage.Buckets.List listApi = mock(Storage.Buckets.List.class);
+    Buckets buckets = new Buckets();
+    List<Bucket> bucketList = new ArrayList<>();
+
+    when(apiFactory.newStorageApi(credential)).thenReturn(storageApi);
+    when(storageApi.buckets()).thenReturn(bucketsApi);
+    when(bucketsApi.list(anyString())).thenReturn(listApi);
+    when(listApi.execute()).thenReturn(buckets);
+
+    for (String bucketName : bucketNames) {
+      Bucket bucket = new Bucket();
+      bucket.setName(bucketName);
+      bucketList.add(bucket);
+    }
+    buckets.setItems(bucketList);
   }
 
   @Test
@@ -101,7 +139,7 @@ public class RunOptionsDefaultsComponentTest {
   }
 
   @Test
-  public void testAccountSelector_twoAccounts() {
+  public void testAccountSelector_init() {
     AccountSelector selector = CompositeUtil.findControl(shell, AccountSelector.class);
     Assert.assertEquals(2, selector.getAccountCount());
 
@@ -115,6 +153,24 @@ public class RunOptionsDefaultsComponentTest {
   }
 
   @Test
-  public void testBucketValidation() {
+  public void testAccountSelector_bucketLoaded() throws InterruptedException {
+    component.setCloudProjectText("some-gcp-project-id");
+    AccountSelector selector = CompositeUtil.findControl(shell, AccountSelector.class);
+
+    selector.selectAccount("alice@example.com");
+    assertStagingLocationCombo("gs://alice-bucket-1", "gs://alice-bucket-2");
+
+    selector.selectAccount("bob@example.com");
+    assertStagingLocationCombo("gs://bob-bucket");
+  }
+
+  private void assertStagingLocationCombo(String... buckets) throws InterruptedException {
+    Combo combo = CompositeUtil.findControlAfterLabel(shell,
+        Combo.class, "Cloud Storage Staging &Location:");
+    for (int i = 0; i < 200 && combo.getItemCount() != buckets.length; i++) {
+      while (Display.getCurrent().readAndDispatch()) {}  // spin
+      Thread.sleep(50);
+    }
+    Assert.assertArrayEquals(buckets, combo.getItems());
   }
 }
