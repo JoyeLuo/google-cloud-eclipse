@@ -263,13 +263,12 @@ public class RunOptionsDefaultsComponent {
       return;
     }
 
-    String email = accountSelector.getSelectedEmail();
-    Credential credential = accountSelector.getSelectedCredential();
-    if (credential == null) {
+    if (accountSelector.getSelectedCredential() == null) {
       // We can't verify the staging location because no account was selected
       return;
     }
 
+    String email = accountSelector.getSelectedEmail();
     verifyJob = VerifyStagingLocationJob.create(getGcsClient(), email, stagingLocation);
     verifyJob.schedule(VERIFY_LOCATION_DELAY_MS);
     final ListenableFutureProxy<VerifyStagingLocationResult> resultFuture =
@@ -322,8 +321,7 @@ public class RunOptionsDefaultsComponent {
   private class CreateStagingLocationListener extends SelectionAdapter {
     @Override
     public void widgetSelected(SelectionEvent event) {
-      Credential credential = accountSelector.getSelectedCredential();
-      if (credential == null) {
+      if (accountSelector.getSelectedCredential() == null) {
         return;
       }
 
