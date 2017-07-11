@@ -492,35 +492,12 @@ public class PipelineLaunchConfigurationTest {
   }
 
   private DataflowPreferences absentPrefs() {
-    return mapPrefs(Collections.<String, String> emptyMap());
+    return mapPrefs(Collections.<String, String>emptyMap());
   }
 
-  private DataflowPreferences mapPrefs(final Map<String, String> asMap) {
-    return new DataflowPreferences() {
-      @Override
-      public String getDefaultAccountEmail() {
-        return null;
-      }
-
-      @Override
-      public String getDefaultStagingLocation() {
-        return null;
-      }
-
-      @Override
-      public String getDefaultGcpTempLocation() {
-        return null;
-      }
-
-      @Override
-      public String getDefaultProject() {
-        return null;
-      }
-
-      @Override
-      public Map<String, String> asDefaultPropertyMap() {
-        return asMap;
-      }
-    };
+  private DataflowPreferences mapPrefs(Map<String, String> asMap) {
+    DataflowPreferences preferences = mock(DataflowPreferences.class);
+    when(preferences.asDefaultPropertyMap()).thenReturn(asMap);
+    return preferences;
   }
 }
