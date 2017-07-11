@@ -196,8 +196,16 @@ public class RunOptionsDefaultsComponent {
     return target;
   }
 
+  public void selectAccount(String accountEmail) {
+    accountSelector.selectAccount(accountEmail);
+  }
+
   public void setCloudProjectText(String project) {
     projectInput.setText(project);
+  }
+
+  public String getAccountEmail() {
+    return accountSelector.getSelectedEmail();
   }
 
   public String getProject() {
@@ -212,12 +220,17 @@ public class RunOptionsDefaultsComponent {
     return GcsDataflowProjectClient.toGcsLocationUri(stagingLocationInput.getText());
   }
 
+  public void addAccountSelectionListener(Runnable listener) {
+    accountSelector.addSelectionListener(listener);
+  }
+
   public void addModifyListener(ModifyListener listener) {
     projectInput.addModifyListener(listener);
     stagingLocationInput.addModifyListener(listener);
   }
 
   public void setEnabled(boolean enabled) {
+    accountSelector.setEnabled(enabled);
     projectInput.setEnabled(enabled);
     stagingLocationInput.setEnabled(enabled);
   }
