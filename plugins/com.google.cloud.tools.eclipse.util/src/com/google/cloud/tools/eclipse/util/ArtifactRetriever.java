@@ -130,6 +130,8 @@ public class ArtifactRetriever {
   /**
    * Returns the latest version of the specified artifact in the version range, or null if there is
    * no such version.
+   * 
+   * @param coordinates Maven coordinates in the form groupId:artifactId
    */
   private ArtifactVersion getLatestIncrementalVersion(String coordinates, VersionRange range) {
     try {
