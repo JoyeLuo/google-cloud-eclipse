@@ -16,7 +16,6 @@
 
 package com.google.cloud.tools.eclipse.util;
 
-import com.google.cloud.tools.eclipse.util.status.StatusUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -26,7 +25,6 @@ import com.google.common.collect.ImmutableSortedSet.Builder;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.VersionRange;
-import org.eclipse.core.runtime.CoreException;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
@@ -117,13 +115,14 @@ public class ArtifactRetriever {
    */
   public ArtifactVersion getLatestArtifactVersion(String groupId, String artifactId) {
     return getLatestIncrementalVersion(idToKey(groupId, artifactId), null);
-  }  
-  
+  }
+
   /**
    * Returns the latest published artifact version in the version range, or null if there is no such
    * version.
    */
-  public ArtifactVersion getLatestArtifactVersion(String groupId, String artifactId, VersionRange range) {
+  public ArtifactVersion getLatestArtifactVersion(
+      String groupId, String artifactId, VersionRange range) {
     return getLatestIncrementalVersion(idToKey(groupId, artifactId), range);
   }
 
@@ -169,7 +168,7 @@ public class ArtifactRetriever {
     return null;
   }
 
-  private Document getMetadataDocument(String coordinates) throws CoreException {
+  private static Document getMetadataDocument(String coordinates) throws IOException {
     String[] x = keyToId(coordinates);
     String groupId = x[0];
     String artifactId = x[1];
@@ -177,12 +176,9 @@ public class ArtifactRetriever {
       return DocumentBuilderFactory.newInstance()
           .newDocumentBuilder()
           .parse(getMetadataUrl(groupId, artifactId).toString());
-    } catch (IOException ex) {
-      throw new CoreException(
-          StatusUtil.error(this, "Could not retrieve Dataflow SDK Metadata", ex));
     } catch (ParserConfigurationException | SAXException ex) {
-      throw new CoreException(
-          StatusUtil.error(this, "Could not configure Document Builder", ex));
+      // these really shouldn't happen but if they do we'll wrap them
+      throw new IOException("Could not configure Document Builder", ex);
     }
   }
 
