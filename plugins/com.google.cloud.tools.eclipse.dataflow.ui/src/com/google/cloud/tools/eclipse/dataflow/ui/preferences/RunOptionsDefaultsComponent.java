@@ -311,9 +311,9 @@ public class RunOptionsDefaultsComponent {
   }
 
   /**
-   * Whenever focus on the project ID field is lost or account selection changes, retrieve all of
-   * the buckets and update the target combo with the retrieved buckets, and update the {@link
-   * SelectFirstMatchingPrefixListener} with new autocompletions.
+   * Whenever focus is lost, retrieve all of the buckets and update the target combo with the
+   * retrieved buckets, and update the {@link SelectFirstMatchingPrefixListener} with new
+   * autocompletions.
    */
   private class GetProjectStagingLocationsListener extends FocusAdapter {
     @Override
