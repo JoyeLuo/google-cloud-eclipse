@@ -17,6 +17,7 @@
 package com.google.cloud.tools.eclipse.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -30,6 +31,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.NavigableSet;
 import java.util.concurrent.ExecutionException;
@@ -55,12 +58,14 @@ public class ArtifactRetriever {
   
   private static final Logger logger = Logger.getLogger(ArtifactRetriever.class.getName());
   
+  private final String repositoryUrl;
+  
   @VisibleForTesting
-  static URL getMetadataUrl(String groupId, String artifactId) {
+  URL getMetadataUrl(String groupId, String artifactId) {
     String groupPath = groupId.replace('.', '/');
     try {
       return new URL(
-          "https://repo1.maven.org/maven2/" + groupPath + "/" + artifactId + "/maven-metadata.xml");
+          repositoryUrl + groupPath + "/" + artifactId + "/maven-metadata.xml");
     } catch (MalformedURLException e) {
       throw new IllegalStateException(
           String.format("Could not construct metadata URL for artifact %s", artifactId), e);
@@ -105,9 +110,27 @@ public class ArtifactRetriever {
                 }
               });
 
-  private static final ArtifactRetriever INSTANCE = new ArtifactRetriever();
-  public static ArtifactRetriever defaultInstance() {
-    return INSTANCE;
+  /**
+   * @param repositoryUrl the base URL of the maven mirror such as 
+   *     "https://repo1.maven.org/maven2/"
+   * @throws URISyntaxException if the argument is not a valid URL
+   */
+  public ArtifactRetriever(String repositoryUrl) throws URISyntaxException {
+    Preconditions.checkNotNull(repositoryUrl);
+    // check for URL syntax
+    new URI(repositoryUrl);
+    if (!repositoryUrl.endsWith("/")) {
+      repositoryUrl = repositoryUrl + "/";
+    }
+    
+    this.repositoryUrl = repositoryUrl;
+  }
+
+  /**
+   * Retrieve from https://repo1.maven.org/maven2/
+   */
+  public ArtifactRetriever() {
+    this.repositoryUrl = "https://repo1.maven.org/maven2/";
   }
 
   /**
@@ -168,7 +191,7 @@ public class ArtifactRetriever {
     return null;
   }
 
-  private static Document getMetadataDocument(String coordinates) throws IOException {
+  private Document getMetadataDocument(String coordinates) throws IOException {
     String[] x = keyToId(coordinates);
     String groupId = x[0];
     String artifactId = x[1];
