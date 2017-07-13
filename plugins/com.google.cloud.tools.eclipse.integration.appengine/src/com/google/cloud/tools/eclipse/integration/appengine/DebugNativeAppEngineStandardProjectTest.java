@@ -119,7 +119,10 @@ public class DebugNativeAppEngineStandardProjectTest extends BaseProjectTest {
     final SWTBotStyledText consoleContents =
         new SWTBotStyledText(bot.widget(widgetOfType(StyledText.class), consoleView.getWidget()));
     SwtBotTestingUtilities.waitUntilStyledTextContains(bot,
-        "Module instance default is running at http://localhost:8080", consoleContents);
+        "Dev App Server is now running", consoleContents);
+
+    System.out.printf("---- Dev App Server ----\n%s\n------------------\n",
+        consoleContents.getText());
 
     assertEquals("Hello App Engine!",
         getUrlContents(new URL("http://localhost:8080/hello"), (int) SWTBotPreferences.TIMEOUT));
