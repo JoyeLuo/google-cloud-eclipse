@@ -21,11 +21,15 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.tools.eclipse.test.util.reflection.ReflectionUtil;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -38,6 +42,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.eclipse.core.internal.jobs.InternalJob;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
@@ -283,8 +288,10 @@ public class ProjectUtils {
         buildErrorsChanging = !previousBuildErrors.equals(currentBuildErrors);
         previousBuildErrors = currentBuildErrors;
 
-        if (DEBUG || timer.elapsed(TimeUnit.SECONDS) > 10) {
-          if (!jobs.isEmpty()) {
+        if (DEBUG || timer.elapsed(TimeUnit.SECONDS) > 5) {
+          if (timer.elapsed(TimeUnit.SECONDS) > 10) {
+            dumpJobsState(timer);
+          } else if (!jobs.isEmpty()) {
             System.err.printf("ProjectUtils#waitForProjects[%s]: waiting for %d jobs: %s\n", timer,
                 jobs.size(), jobs);
           }
@@ -292,18 +299,80 @@ public class ProjectUtils {
             System.err.printf("ProjectUtils#waitForProjects[%s]: waiting for %d build errors\n",
                 timer, currentBuildErrors.size());
           }
-          // Uncomment if tests are failing to identify any other build-related jobs.
-          // Job[] otherJobs = Job.getJobManager().find(null);
-          // if (otherJobs.length > 0) {
-          // System.err.printf("Ignoring %d unrelated jobs:\n", otherJobs.length);
-          // for (Job job : otherJobs) {
-          // System.err.printf(" %s: %s\n", job.getClass().getName(), job);
-          // }
-          // }
         }
       } while (!jobs.isEmpty() || buildErrorsChanging);
     } catch (CoreException | InterruptedException ex) {
       throw new RuntimeException(ex);
+    }
+  }
+
+  private static void dumpJobsState(Stopwatch timer) {
+    Job[] otherJobs = Job.getJobManager().find(null);
+    if (otherJobs.length == 0) {
+      System.err.printf("ProjectUtils#dumpJobsState[%s]: no jobs\n", timer);
+      return;
+    }
+
+    Arrays.sort(otherJobs, new Ordering<Job>() {
+      @Override
+      public int compare(Job j1, Job j2) {
+        Preconditions.checkNotNull(j1);
+        Preconditions.checkNotNull(j2);
+        //@formatter:off
+        return ComparisonChain.start()
+            .compareTrueFirst(j1.isBlocking(), j2.isBlocking())
+            .compare(j2.getState(), j1.getState()) // descending order so RUNNING is first
+            .compare(j1.getPriority(), j2.getPriority())
+            .compareTrueFirst(j1.isUser(), j2.isUser())
+            .compareTrueFirst(j1.isSystem(), j2.isSystem())
+            .compare(j1.getRule(), j2.getRule(), Ordering.usingToString().nullsLast())
+            .result();
+        //@formatter:on
+      }
+    });
+
+    System.err.printf("ProjectUtils#dumpJobsState[%s]: %d jobs:\n", timer, otherJobs.length);
+    for (Job job : otherJobs) {
+      String status;
+      switch (job.getState()) {
+        case Job.RUNNING:
+          status = "RUNNING";
+          break;
+        case Job.WAITING:
+          status = "WAITING";
+          break;
+        case Job.SLEEPING:
+          status = "SLEEPING";
+          break;
+        case Job.NONE:
+          status = "NONE";
+          break;
+        default:
+          status = "UNKNOWN(" + job.getState() + ")";
+          break;
+      }
+      Object blockingJob = null;
+      try {
+        blockingJob = ReflectionUtil.invoke(Job.getJobManager(), "findBlockingJob",
+            new Class<?>[] {InternalJob.class}, InternalJob.class, job);
+      } catch (Exception ex) {
+        System.err.println("Unable to fetch blocking-job: " + ex);
+      }
+      //@formatter:off
+      System.err.printf(" + %s%s{pri=%d%s%s%s%s} %s (%s)\n",
+          status,
+          (job.isBlocking() ? "<BLOCKING>" : ""), 
+          job.getPriority(), 
+          (job.getRule() != null ? ",rule=" + job.getRule() : ""),
+          (job.isSystem() ? ",system" : ""),
+          (job.isUser() ? ",user" : ""),
+          (job.getThread() != null ? ",thr=" + job.getThread() : ""),
+          job,
+          job.getClass().getName());
+      //@formatter:on
+      if (blockingJob != null) {
+        System.err.println("    - blocked by: " + blockingJob);
+      }
     }
   }
 
