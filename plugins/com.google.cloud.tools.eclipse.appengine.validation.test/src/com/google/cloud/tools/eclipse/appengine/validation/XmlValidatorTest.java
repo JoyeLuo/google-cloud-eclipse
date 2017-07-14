@@ -21,11 +21,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.tools.eclipse.appengine.facets.AppEngineStandardFacet;
+import com.google.cloud.tools.eclipse.test.util.ThreadDumpingWatchdog;
 import com.google.cloud.tools.eclipse.test.util.project.ProjectUtils;
 import com.google.cloud.tools.eclipse.test.util.project.TestProjectCreator;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
@@ -107,6 +109,9 @@ public class XmlValidatorTest {
     ProjectUtils.waitForProjects(project);  // Wait until Eclipse puts an error marker.
 
     IMarker[] markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_ZERO);
+    if (markers.length != 1) {
+      new ThreadDumpingWatchdog(0, TimeUnit.DAYS).run();
+    }
     assertEquals(1, markers.length);
 
     String resultMessage = (String) markers[0].getAttribute(IMarker.MESSAGE);
