@@ -129,9 +129,10 @@ public class RunOptionsDefaultsComponent {
 
     accountSelector.selectAccount(preferences.getDefaultAccountEmail());
 
+    projectInputLabel.setText("Cloud Platform &Project ID:");
+
     // Initialize the Default Project, which is used to populate the Staging Location field
     String project = preferences.getDefaultProject();
-    projectInputLabel.setText("Cloud Platform &Project ID:");
     projectInput.setText(Strings.nullToEmpty(project));
 
     comboLabel.setText("Cloud Storage Staging &Location:");
