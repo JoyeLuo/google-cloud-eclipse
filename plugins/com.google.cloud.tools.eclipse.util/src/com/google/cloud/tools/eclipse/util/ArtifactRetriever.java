@@ -61,11 +61,23 @@ public class ArtifactRetriever {
     try {
       return new URL(
           "https://repo1.maven.org/maven2/" + groupPath + "/" + artifactId + "/maven-metadata.xml");
-    } catch (MalformedURLException e) {
+    } catch (MalformedURLException ex) {
       throw new IllegalStateException(
-          String.format("Could not construct metadata URL for artifact %s", artifactId), e);
+          "Could not construct metadata URL for artifact " + artifactId, ex);
     }
   }
+  
+  private final LoadingCache<String, Document> metadataCache =
+      CacheBuilder.newBuilder()
+          .refreshAfterWrite(4, TimeUnit.HOURS)
+          .build(
+              new CacheLoader<String, Document>() {
+
+                @Override
+                public Document load(String coordinates) throws Exception {
+                  return getMetadataDocument(coordinates);
+                }
+              });
 
   private final LoadingCache<String, ArtifactVersion> latestVersion =
       CacheBuilder.newBuilder()
@@ -75,7 +87,7 @@ public class ArtifactRetriever {
 
                 @Override
                 public ArtifactVersion load(String coordinates) throws Exception {
-                  Document document = getMetadataDocument(coordinates);
+                  Document document = metadataCache.get(coordinates);
                   XPath xpath = XPathFactory.newInstance().newXPath();
                   String result = xpath.evaluate("/metadata/versioning/latest", document);
                   return new DefaultArtifactVersion(result);
@@ -90,7 +102,7 @@ public class ArtifactRetriever {
 
                 @Override
                 public NavigableSet<ArtifactVersion> load(String coordinates) throws Exception {
-                  Document document = getMetadataDocument(coordinates);
+                  Document document = metadataCache.get(coordinates);
                   XPath xpath = XPathFactory.newInstance().newXPath();
                   NodeList versionNodes = (NodeList) xpath.evaluate(
                       "/metadata/versioning/versions/version",
