@@ -18,15 +18,27 @@ package com.google.cloud.tools.eclipse.dataflow.core.launcher;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.tools.eclipse.dataflow.core.DataflowCorePlugin;
 import com.google.cloud.tools.eclipse.dataflow.core.launcher.options.PipelineOptionsHierarchy;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.ProjectOrWorkspaceDataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.core.project.DataflowDependencyManager;
 import com.google.cloud.tools.eclipse.dataflow.core.project.MajorVersion;
+import com.google.cloud.tools.eclipse.login.CredentialHelper;
+import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -37,15 +49,13 @@ import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.debug.core.model.ILaunchConfigurationDelegate;
 import org.eclipse.debug.core.model.ILaunchConfigurationDelegate2;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.JavaLaunchDelegate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
 
 /**
  * The {@link ILaunchConfigurationDelegate} to launch a Google Cloud Dataflow Pipeline.
@@ -60,6 +70,9 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
       "dataflow_tmp_config_working_copy-";
   @VisibleForTesting
   static final String RUNNER_COMMAND_LINE_STRING = "runner";
+  @VisibleForTesting
+  static final String GOOGLE_APPLICATION_CREDENTIALS_ENVIRONMENT_VARIABLE =
+      "GOOGLE_APPLICATION_CREDENTIALS";
 
   private static final Joiner SPACE_JOINER = Joiner.on(" ").skipNulls();
 
@@ -126,7 +139,55 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
     workingCopy.setAttribute(
         IJavaLaunchConfigurationConstants.ATTR_PROGRAM_ARGUMENTS, SPACE_JOINER.join(argComponents));
 
+    setLoginCredential(workingCopy);
+
     delegate.launch(workingCopy, mode, launch, progress.newChild(1));
+  }
+
+  @VisibleForTesting
+  static void setLoginCredential(ILaunchConfigurationWorkingCopy workingCopy)
+      throws CoreException {
+    Map<String, String> launchConfigurationArguments = workingCopy.getAttribute(
+        PipelineConfigurationAttr.ALL_ARGUMENT_VALUES.toString(), (Map<String, String>) null);
+    Preconditions.checkNotNull(launchConfigurationArguments);
+    Preconditions.checkNotNull(launchConfigurationArguments.get("accountEmail"));
+
+    try {
+      // Dataflow SDK doesn't yet support reading credentials from an arbitrary JSON, so we use the
+      // workaround of setting the "GOOGLE_APPLICATION_CREDENTIALS" environment variable.
+      Map<String, String> variableMap = workingCopy.getAttribute(
+          ILaunchManager.ATTR_ENVIRONMENT_VARIABLES, new HashMap<String, String>());
+      if (variableMap.containsKey(GOOGLE_APPLICATION_CREDENTIALS_ENVIRONMENT_VARIABLE)) {
+        String message = "You cannot define the environment variable GOOGLE_APPLICATION_CREDENTIALS"
+            + " when launching Dataflow pipelines from Cloud Tools for Eclipse.";
+        throw new CoreException(new Status(Status.ERROR, DataflowCorePlugin.PLUGIN_ID, message));
+      }
+
+      String accountEmail = launchConfigurationArguments.get("accountEmail");
+      Credential credential = getLoginService().getCredential(accountEmail);
+      if (credential == null) {
+        String message = "The account saved for this lanuch configuration is not logged in.";
+        throw new CoreException(new Status(Status.ERROR, DataflowCorePlugin.PLUGIN_ID, message));
+      }
+
+      Path jsonCredential = Files.createTempFile("google-ct4e-" + workingCopy.getName(), ".json");
+      CredentialHelper.toJsonFile(credential, jsonCredential);
+      jsonCredential.toFile().deleteOnExit();
+
+      variableMap.put(GOOGLE_APPLICATION_CREDENTIALS_ENVIRONMENT_VARIABLE,
+          jsonCredential.toAbsolutePath().toString());
+      workingCopy.setAttribute(ILaunchManager.ATTR_ENVIRONMENT_VARIABLES, variableMap);
+    } catch (IOException ex) {
+      throw new CoreException(
+          new Status(Status.ERROR, DataflowCorePlugin.PLUGIN_ID, ex.getMessage(), ex));
+    }
+  }
+
+  private static IGoogleLoginService getLoginService() {
+    BundleContext bundleContext =
+        FrameworkUtil.getBundle(DataflowPipelineLaunchDelegate.class).getBundleContext();
+    return bundleContext.getService(
+        bundleContext.getServiceReference(IGoogleLoginService.class));
   }
 
   private List<String> getArguments(
