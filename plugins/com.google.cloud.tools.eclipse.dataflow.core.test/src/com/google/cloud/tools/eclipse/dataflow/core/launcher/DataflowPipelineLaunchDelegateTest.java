@@ -23,13 +23,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
 import com.google.cloud.tools.eclipse.dataflow.core.launcher.options.PipelineOptionsHierarchy;
 import com.google.cloud.tools.eclipse.dataflow.core.launcher.options.PipelineOptionsProperty;
 import com.google.cloud.tools.eclipse.dataflow.core.launcher.options.PipelineOptionsType;
 import com.google.cloud.tools.eclipse.dataflow.core.project.DataflowDependencyManager;
 import com.google.cloud.tools.eclipse.dataflow.core.project.MajorVersion;
+import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.runtime.CoreException;
@@ -42,19 +52,16 @@ import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.JavaLaunchDelegate;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import org.mockito.runners.MockitoJUnitRunner;
 
 /**
  * Tests for {@link DataflowPipelineLaunchDelegate}.
  */
+@RunWith(MockitoJUnitRunner.class)
 public class DataflowPipelineLaunchDelegateTest {
   private DataflowPipelineLaunchDelegate dataflowDelegate;
   private NullProgressMonitor monitor = new NullProgressMonitor();
@@ -77,19 +84,28 @@ public class DataflowPipelineLaunchDelegateTest {
   @Mock
   private PipelineOptionsHierarchy pipelineOptionsHierarchy;
 
-  private MajorVersion majorVersion = MajorVersion.ONE;
+  @Mock
+  private IGoogleLoginService loginService;
+
+  private final Credential credential = new GoogleCredential.Builder()
+      .setJsonFactory(mock(JsonFactory.class))
+      .setTransport(mock(HttpTransport.class))
+      .setClientSecrets("clientId", "clientSecret").build();
+
+  private final MajorVersion majorVersion = MajorVersion.ONE;
 
   @Before
   public void setup() throws Exception {
-    MockitoAnnotations.initMocks(this);
-
     when(pipelineOptionsHierarchyFactory.forProject(
             Mockito.eq(project), Mockito.eq(majorVersion), Mockito.<IProgressMonitor>any()))
         .thenReturn(pipelineOptionsHierarchy);
 
+    credential.setRefreshToken("fake-refresh-token");
+    when(loginService.getCredential(Mockito.anyString())).thenReturn(credential);
+
     when(dependencyManager.getProjectMajorVersion(project)).thenReturn(MajorVersion.ONE);
-    dataflowDelegate = new DataflowPipelineLaunchDelegate(
-        javaDelegate, pipelineOptionsHierarchyFactory, dependencyManager, workspaceRoot);
+    dataflowDelegate = new DataflowPipelineLaunchDelegate(javaDelegate,
+        pipelineOptionsHierarchyFactory, dependencyManager, workspaceRoot, loginService);
   }
 
   @Test
@@ -143,7 +159,7 @@ public class DataflowPipelineLaunchDelegateTest {
       assertTrue(ex.getMessage().contains("Dataflow Pipeline Configuration is not valid"));
     }
   }
-  
+
   @Test
   public void testLaunchWithProjectThatDoesNotExistThrowsIllegalArgumentException()
       throws CoreException {
@@ -192,6 +208,7 @@ public class DataflowPipelineLaunchDelegateTest {
             .put("baz", "Ham")
             .put("Extra", "PipelineArgs")
             .put("NotUsedInThisRunner", "Ignored")
+            .put("accountEmail", "bogus@example.com")
             .build();
 
     when(
@@ -207,6 +224,9 @@ public class DataflowPipelineLaunchDelegateTest {
     when(
         configuration.copy(DataflowPipelineLaunchDelegate.DATAFLOW_LAUNCH_CONFIG_WORKING_COPY_PREFIX
             + configurationName)).thenReturn(expectedConfiguration);
+    when(expectedConfiguration.getAttribute(
+        PipelineConfigurationAttr.ALL_ARGUMENT_VALUES.toString(), (Map<String, String>) null))
+        .thenReturn(argumentValues);
 
     String projectName = "Test-project,Name";
     when(configuration.getAttribute(IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, ""))
@@ -264,6 +284,7 @@ public class DataflowPipelineLaunchDelegateTest {
     argumentValues.put("Extra", "PipelineArgs");
     argumentValues.put("NotUsedInThisRunner", "Ignored");
     argumentValues.put("Empty", "");
+    argumentValues.put("accountEmail", "bogus@example.com");
     argumentValues.put("Null", null);
 
     when(
@@ -279,6 +300,9 @@ public class DataflowPipelineLaunchDelegateTest {
     when(
         configuration.copy(DataflowPipelineLaunchDelegate.DATAFLOW_LAUNCH_CONFIG_WORKING_COPY_PREFIX
             + configurationName)).thenReturn(expectedConfiguration);
+    when(expectedConfiguration.getAttribute(
+        PipelineConfigurationAttr.ALL_ARGUMENT_VALUES.toString(), (Map<String, String>) null))
+        .thenReturn(argumentValues);
 
     String projectName = "Test-project,Name";
     when(configuration.getAttribute(IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, ""))

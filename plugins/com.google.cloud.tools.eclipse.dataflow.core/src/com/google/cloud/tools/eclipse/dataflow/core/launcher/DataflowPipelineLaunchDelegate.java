@@ -80,13 +80,15 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
   private final PipelineOptionsHierarchyFactory optionsRetrieverFactory;
   private final IWorkspaceRoot workspaceRoot;
   private final DataflowDependencyManager dependencyManager;
+  private final IGoogleLoginService loginService;
 
   public DataflowPipelineLaunchDelegate() {
     this(
         new JavaLaunchDelegate(),
         new ClasspathPipelineOptionsHierarchyFactory(),
         DataflowDependencyManager.create(),
-        ResourcesPlugin.getWorkspace().getRoot());
+        ResourcesPlugin.getWorkspace().getRoot(),
+        getLoginService());
   }
 
   @VisibleForTesting
@@ -94,11 +96,13 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
       JavaLaunchDelegate javaLaunchDelegate,
       PipelineOptionsHierarchyFactory optionsHierarchyFactory,
       DataflowDependencyManager dependencyManager,
-      IWorkspaceRoot workspaceRoot) {
+      IWorkspaceRoot workspaceRoot,
+      IGoogleLoginService loginService) {
     this.delegate = javaLaunchDelegate;
     this.optionsRetrieverFactory = optionsHierarchyFactory;
     this.dependencyManager = dependencyManager;
     this.workspaceRoot = workspaceRoot;
+    this.loginService = loginService;
   }
 
   @Override
@@ -145,12 +149,11 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
   }
 
   @VisibleForTesting
-  static void setLoginCredential(ILaunchConfigurationWorkingCopy workingCopy)
-      throws CoreException {
-    Map<String, String> launchConfigurationArguments = workingCopy.getAttribute(
+  void setLoginCredential(ILaunchConfigurationWorkingCopy workingCopy) throws CoreException {
+    Map<String, String> configurationArguments = workingCopy.getAttribute(
         PipelineConfigurationAttr.ALL_ARGUMENT_VALUES.toString(), (Map<String, String>) null);
-    Preconditions.checkNotNull(launchConfigurationArguments);
-    Preconditions.checkNotNull(launchConfigurationArguments.get("accountEmail"));
+    Preconditions.checkNotNull(configurationArguments);
+    Preconditions.checkNotNull(configurationArguments.get("accountEmail"));
 
     try {
       // Dataflow SDK doesn't yet support reading credentials from an arbitrary JSON, so we use the
@@ -163,8 +166,8 @@ public class DataflowPipelineLaunchDelegate extends ForwardingLaunchConfiguratio
         throw new CoreException(new Status(Status.ERROR, DataflowCorePlugin.PLUGIN_ID, message));
       }
 
-      String accountEmail = launchConfigurationArguments.get("accountEmail");
-      Credential credential = getLoginService().getCredential(accountEmail);
+      String accountEmail = configurationArguments.get("accountEmail");
+      Credential credential = loginService.getCredential(accountEmail);
       if (credential == null) {
         String message = "The account saved for this lanuch configuration is not logged in.";
         throw new CoreException(new Status(Status.ERROR, DataflowCorePlugin.PLUGIN_ID, message));
