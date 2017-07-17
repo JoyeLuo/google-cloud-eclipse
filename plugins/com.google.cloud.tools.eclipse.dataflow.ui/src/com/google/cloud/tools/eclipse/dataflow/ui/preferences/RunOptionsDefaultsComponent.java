@@ -19,7 +19,6 @@ package com.google.cloud.tools.eclipse.dataflow.ui.preferences;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.tools.eclipse.dataflow.core.preferences.DataflowPreferences;
 import com.google.cloud.tools.eclipse.dataflow.core.project.FetchStagingLocationsJob;
 import com.google.cloud.tools.eclipse.dataflow.core.project.GcsDataflowProjectClient;
@@ -37,6 +36,7 @@ import com.google.cloud.tools.eclipse.login.IGoogleLoginService;
 import com.google.cloud.tools.eclipse.login.ui.AccountSelector;
 import com.google.cloud.tools.eclipse.ui.util.databinding.BucketNameValidator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSortedSet;
 import java.util.Locale;

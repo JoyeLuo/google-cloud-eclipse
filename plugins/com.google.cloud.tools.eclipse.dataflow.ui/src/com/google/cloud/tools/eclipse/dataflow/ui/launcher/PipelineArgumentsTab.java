@@ -35,6 +35,7 @@ import com.google.cloud.tools.eclipse.dataflow.ui.page.component.LabeledTextMapC
 import com.google.cloud.tools.eclipse.dataflow.ui.page.component.TextAndButtonComponent;
 import com.google.cloud.tools.eclipse.dataflow.ui.page.component.TextAndButtonSelectionListener;
 import com.google.cloud.tools.eclipse.dataflow.ui.util.DisplayExecutor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -285,7 +286,8 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
     launchConfiguration.toLaunchConfiguration(configuration);
   }
 
-  private PipelineRunner getSelectedRunner() {
+  @VisibleForTesting
+  PipelineRunner getSelectedRunner() {
     for (Map.Entry<PipelineRunner, Button> runnerButton : runnerButtons.entrySet()) {
       if (runnerButton.getValue().getSelection()) {
         return runnerButton.getKey();
@@ -325,7 +327,8 @@ public class PipelineArgumentsTab extends AbstractLaunchConfigurationTab {
     }
   }
 
-  private void updateRunnerButtons(MajorVersion majorVersion) {
+  @VisibleForTesting
+  void updateRunnerButtons(MajorVersion majorVersion) {
     populateRunners(majorVersion);
     for (Button button : runnerButtons.values()) {
       button.setSelection(false);
