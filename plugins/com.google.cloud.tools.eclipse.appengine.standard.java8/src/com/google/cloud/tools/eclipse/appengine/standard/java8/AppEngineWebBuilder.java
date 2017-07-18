@@ -31,11 +31,14 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jst.common.project.facet.core.JavaFacet;
 import org.eclipse.jst.j2ee.web.project.facet.WebFacetUtils;
+import org.eclipse.ui.preferences.ScopedPreferenceStore;
 import org.eclipse.wst.common.project.facet.core.IFacetedProject;
 import org.eclipse.wst.common.project.facet.core.IFacetedProject.Action;
 import org.eclipse.wst.common.project.facet.core.ProjectFacetsManager;
@@ -53,6 +56,19 @@ public class AppEngineWebBuilder extends IncrementalProjectBuilder {
   @Override
   protected IProject[] build(int kind, Map<String, String> args, IProgressMonitor monitor)
       throws CoreException {
+    ScopedPreferenceStore resourcesPluginPrefs = new ScopedPreferenceStore(InstanceScope.INSTANCE, ResourcesPlugin.PI_RESOURCES);
+    boolean old = resourcesPluginPrefs.getBoolean(ResourcesPlugin.PREF_AUTO_REFRESH);
+    resourcesPluginPrefs.setValue(ResourcesPlugin.PREF_AUTO_REFRESH, false);
+    try{
+        return doBuild(kind, args, monitor);
+    } finally {
+        resourcesPluginPrefs.setValue(ResourcesPlugin.PREF_AUTO_REFRESH, old);
+    }
+
+  }
+  
+  private IProject[] doBuild(int kind, Map<String, String> args, IProgressMonitor monitor)
+        throws CoreException {
     IFacetedProject project = ProjectFacetsManager.create(getProject());
     if (project == null || !AppEngineStandardFacet.hasFacet(project)) {
       logger.fine(getProject() + ": no build required: no App Engine Standard facet");
